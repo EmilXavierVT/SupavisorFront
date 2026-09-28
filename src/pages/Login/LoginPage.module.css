@@ -1,0 +1,63 @@
+.shell {
+  overflow-y: auto;
+}
+
+.shell :global(button:not(:disabled)),
+.shell :global(a[href]),
+.shell :global([role="button"]:not([aria-disabled="true"])) {
+  cursor: pointer;
+}
+
+.shell :global(button:disabled),
+.shell :global(input:disabled),
+.shell :global([aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+.shell :global(.login-help-form) {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shell :global(.login-help-form textarea) {
+  width: 100%;
+  min-height: 104px;
+  resize: vertical;
+  padding: 10px 14px;
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+  color: var(--page-foreground);
+  background: var(--page-background);
+  font: inherit;
+}
+
+.shell :global(.login-help-form textarea:focus-visible) {
+  outline: 2px solid var(--page-primary);
+  outline-offset: 3px;
+}
+
+.shell :global(.login-help-status) {
+  padding: 12px 14px;
+  border: 1px solid #a7f3d0;
+  border-radius: 9px;
+  color: #065f46;
+  background: #ecfdf5;
+  font-size: 12px;
+}
+
+@media (max-width: 520px) {
+  .shell {
+    align-items: flex-start;
+    padding-top: 16px;
+    padding-bottom: 24px;
+  }
+
+  .shell :global(.login-container > .page-brand) {
+    margin-bottom: 20px;
+  }
+
+  .shell :global(.login-card) {
+    padding: 24px 20px;
+  }
+}

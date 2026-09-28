@@ -1,0 +1,285 @@
+.shell {
+  min-width: 0;
+}
+
+.shell :global(button:not(:disabled)),
+.shell :global(a[href]),
+.shell :global(select:not(:disabled)),
+.shell :global(input[type="checkbox"]:not(:disabled)),
+.shell :global(input[type="radio"]:not(:disabled)),
+.shell :global(input[type="color"]:not(:disabled)),
+.shell :global([role="button"]:not([aria-disabled="true"])) {
+  cursor: pointer;
+}
+
+.shell :global(button:disabled),
+.shell :global(select:disabled),
+.shell :global(input:disabled),
+.shell :global([aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+.shell :global(.employee-main),
+.shell :global(.employee-body),
+.shell :global(.employee-overview),
+.shell :global(.employee-page-view) {
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell :global(.employee-main) {
+  overflow: hidden;
+}
+
+.shell:global(.employee-page-collapsed) :global(.employee-nav-item) {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  justify-content: center;
+  gap: 0;
+  margin-inline: auto;
+  padding: 0;
+}
+
+.shell :global(.employee-overview) {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.shell :global(.employee-notifications-footer) {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 14px;
+  border-top: 1px solid var(--page-border);
+}
+
+.shell :global(.employee-mark-read) {
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--page-subtle);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shell :global(.employee-mark-read:hover) {
+  color: var(--page-foreground);
+  background: var(--page-background);
+}
+
+.shell :global(.employee-contact-form) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.shell :global(.employee-contact-form label) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shell :global(.employee-contact-form label > span) {
+  color: var(--page-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shell :global(.employee-contact-form input) {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--page-border);
+  border-radius: 9px;
+  color: var(--page-foreground);
+  background: var(--page-background);
+}
+
+.shell :global(.employee-contact-actions) {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+
+.shell :global(.employee-contact-actions button) {
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid var(--page-primary);
+  border-radius: 9px;
+  color: #ffffff;
+  background: var(--page-primary);
+  font-weight: 600;
+}
+
+.shell :global(.employee-contact-note) {
+  margin-top: 12px;
+  color: var(--page-subtle);
+  font-size: 11px;
+}
+
+/* Tablet layouts stack the action rail below the overview so content stays usable. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .shell {
+    --sidebar-width: 184px;
+  }
+
+  .shell:global(.employee-page-collapsed) {
+    --sidebar-width: 64px;
+  }
+
+  .shell:global(.employee-page),
+  .shell:global(.employee-page-collapsed) {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .shell :global(.employee-header) {
+    padding-inline: 24px;
+  }
+
+  .shell :global(.employee-header-title) {
+    min-width: 0;
+  }
+
+  .shell :global(.employee-header-title p) {
+    max-width: 420px;
+  }
+
+  .shell :global(.employee-body) {
+    display: block;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .shell :global(.employee-overview) {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .shell :global(.employee-overview-inner) {
+    max-width: none;
+    padding-bottom: 8px;
+  }
+
+  .shell :global(.employee-actions) {
+    display: grid;
+    width: auto;
+    min-height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    overflow: visible;
+    padding: 24px;
+    border-top: 1px solid var(--page-border);
+    border-left: 0;
+  }
+
+  .shell :global(.employee-actions-intro) {
+    grid-column: 1 / -1;
+  }
+
+  .shell :global(.employee-action-section) {
+    margin-top: 0;
+  }
+
+  .shell :global(.employee-account) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .shell :global(.employee-header-title) {
+    min-width: 0;
+  }
+
+  .shell :global(.employee-header-title h1) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shell :global(.employee-header-controls) {
+    gap: 6px;
+  }
+
+  .shell :global(.employee-body) {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .shell :global(.employee-overview) {
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .shell :global(.employee-overview) {
+    padding: 20px 16px 96px;
+  }
+
+  .shell :global(.employee-stats) {
+    gap: 12px;
+  }
+
+  .shell :global(.employee-stat-card),
+  .shell :global(.employee-settings-panel) {
+    padding: 18px;
+  }
+
+  .shell :global(.employee-upcoming) {
+    margin-top: 24px;
+  }
+
+  .shell :global(.employee-empty-shifts) {
+    min-height: 240px;
+    padding-inline: 16px;
+  }
+
+  .shell :global(.employee-view-heading) {
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+
+  .shell :global(.employee-view-heading h2) {
+    font-size: 24px;
+  }
+
+  .shell :global(.employee-mobile-nav button) {
+    min-width: 58px;
+    padding-inline: 10px;
+  }
+
+  .shell :global(.employee-contact-form) {
+    grid-template-columns: 1fr;
+  }
+
+  .shell :global(.employee-contact-actions) {
+    grid-column: 1;
+  }
+
+  .shell :global(.employee-contact-actions button) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .shell :global(.employee-header) {
+    padding-inline: 12px;
+  }
+
+  .shell :global(.employee-avatar) {
+    width: 36px;
+    height: 36px;
+  }
+
+  .shell :global(.employee-mobile-nav button) {
+    min-width: 52px;
+    padding-inline: 6px;
+  }
+}

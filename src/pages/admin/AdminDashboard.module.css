@@ -1,0 +1,308 @@
+.shell {
+  --admin-bg: #f9f9f7;
+  --admin-sidebar: #f2f2ef;
+  --admin-card: #ffffff;
+  --admin-muted: #e8e8e5;
+  --admin-text: #2c2c2a;
+  --admin-subtle: #73736e;
+  --admin-border: #e0e0db;
+  --admin-primary: var(--admin-text);
+  --admin-primary-contrast: #ffffff;
+  --admin-danger: #b42318;
+  --admin-danger-soft: #fef3f2;
+  --admin-sidebar-width: 220px;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
+  height: 100svh;
+  overflow: hidden;
+  color: var(--admin-text);
+  background: var(--admin-bg);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: grid-template-columns 260ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shell *, .shell *::before, .shell *::after { box-sizing: border-box; }
+.shell :global(h1), .shell :global(h2), .shell :global(h3), .shell :global(p) { margin: 0; }
+.shell :global(button), .shell :global(input), .shell :global(select), .shell :global([role="button"]) { font: inherit; touch-action: manipulation; }
+.shell :global(button:not(:disabled)), .shell :global(a[href]), .shell :global(select:not(:disabled)), .shell :global(input[type="checkbox"]:not(:disabled)), .shell :global(input[type="radio"]:not(:disabled)), .shell :global(input[type="color"]:not(:disabled)), .shell :global([role="button"]:not([aria-disabled="true"])) { cursor: pointer; }
+.shell :global(button:disabled), .shell :global(select:disabled), .shell :global(input:disabled), .shell :global([aria-disabled="true"]) { cursor: not-allowed; }
+.shell :global(button:focus-visible), .shell :global(input:focus-visible), .shell :global(select:focus-visible), .shell :global([role="button"]:focus-visible) { outline: 2px solid var(--admin-primary); outline-offset: 3px; }
+.shell:global([data-color-scheme="light"]) { color-scheme: light; }
+.shell:global([data-color-scheme="dark"]) { --admin-danger-soft: color-mix(in srgb, #b42318 16%, var(--admin-card)); color-scheme: dark; }
+.shell:global(.admin-shell-collapsed) { --admin-sidebar-width: 64px; }
+
+/* Sidebar mirrors the employee workspace. */
+.shell :global(.admin-sidebar) { position: relative; display: flex; min-width: 0; flex-direction: column; overflow: visible; border-right: 1px solid var(--admin-border); background: var(--admin-sidebar); }
+.shell :global(.admin-sidebar .page-brand) { gap: 4px; padding: 24px 0 16px; }
+.shell :global(.admin-sidebar .page-brand-symbol) { width: 74px; height: 74px; transition: width 260ms ease, height 260ms ease; }
+.shell:global(.admin-shell-collapsed) :global(.page-brand-symbol) { width: 36px; height: 36px; }
+.shell:global(.admin-shell-collapsed) :global(.page-brand-wordmark-frame) { width: 0; height: 0; overflow: hidden; opacity: 0; }
+.shell :global(.admin-collapse) { position: absolute; top: 150px; right: -12px; z-index: 10; display: flex; width: 24px; height: 24px; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--admin-border); border-radius: 50%; color: var(--admin-subtle); background: var(--admin-card); box-shadow: 0 2px 5px rgb(0 0 0 / 10%); }
+.shell :global(.admin-collapse span) { font-size: 18px; line-height: 1; transform: translateY(-1px); }
+.shell :global(.admin-nav) { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 12px; }
+.shell :global(.admin-sidebar-footer) { padding: 12px; border-top: 1px solid var(--admin-border); }
+.shell :global(.admin-nav-item) { display: flex; width: 100%; min-height: 40px; align-items: center; gap: 10px; margin-bottom: 4px; padding: 8px 10px; border: 1px solid transparent; border-radius: 12px; color: var(--admin-subtle); background: transparent; font-weight: 500; text-align: left; white-space: nowrap; transition: color 160ms ease, background 160ms ease, border-color 160ms ease; }
+.shell :global(.admin-nav-item:hover) { background: var(--admin-muted); }
+.shell :global(.admin-nav-item.is-active) { border-color: var(--admin-border); color: var(--admin-text); background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 10%); }
+.shell:global(.admin-shell-collapsed) :global(.admin-nav-item) { width: 34px; height: 34px; min-height: 34px; justify-content: center; gap: 0; margin-inline: auto; padding: 0; }
+.shell :global(.admin-nav-item span) { width: auto; overflow: hidden; opacity: 1; transition: opacity 140ms ease 100ms, width 260ms ease; }
+.shell:global(.admin-shell-collapsed) :global(.admin-nav-item span) { width: 0; opacity: 0; transition: opacity 140ms ease, width 260ms ease; }
+
+/* Header uses the same visual scale as the employee header. */
+.shell :global(.admin-main) { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
+.shell :global(.admin-header) { display: flex; min-height: 80px; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 32px; border-bottom: 1px solid var(--admin-border); background: var(--admin-card); }
+.shell :global(.admin-header-title) { min-width: 0; }
+.shell :global(.admin-header-title h1) { overflow: hidden; font-size: 24px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.shell :global(.admin-header-title p) { margin-top: 2px; overflow-wrap: anywhere; color: var(--admin-subtle); }
+.shell :global(.admin-header-actions) { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
+.shell :global(.admin-search) { display: flex; width: 210px; min-height: 40px; align-items: center; gap: 8px; margin-right: 8px; padding: 0 12px; border: 1px solid var(--admin-border); border-radius: 10px; color: var(--admin-subtle); background: var(--admin-bg); }
+.shell :global(.admin-search:focus-within) { border-color: var(--admin-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-primary) 12%, transparent); }
+.shell :global(.admin-search input) { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--admin-text); background: transparent; font-size: 12px; }
+.shell :global(.admin-search input::placeholder) { color: var(--admin-subtle); }
+.shell :global(.admin-user-name) { max-width: 150px; overflow: hidden; color: var(--admin-subtle); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.shell :global(.admin-user-avatar), .shell :global(.admin-header-icon) { display: flex; width: 40px; height: 40px; flex: 0 0 40px; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--admin-border); border-radius: 50%; color: var(--admin-text); background: var(--admin-muted); }
+.shell :global(.admin-user-avatar) { background: var(--admin-muted); font-size: 12px; font-weight: 700; }
+.shell :global(.admin-header-icon) { color: var(--admin-subtle); transition: color 160ms ease, background 160ms ease; }
+.shell :global(.admin-header-icon:hover) { color: var(--admin-text); background: var(--admin-bg); }
+.shell :global(.admin-settings-button) { width: 36px; height: 36px; flex-basis: 36px; }
+
+/* Main content follows the employee overview's spacing and card language. */
+.shell :global(.admin-content) { width: 100%; max-width: 1440px; flex: 1; min-height: 0; margin: 0 auto; overflow-y: auto; overscroll-behavior: contain; padding: 32px 32px 48px; }
+.shell :global(.admin-content:has(> .admin-controls-panel)) { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px 32px; align-items: start; }
+.shell :global(.admin-content:has(> .admin-controls-panel) > .admin-content-heading), .shell :global(.admin-content:has(> .admin-controls-panel) > .admin-notice) { grid-column: 1 / -1; width: 100%; }
+.shell :global(.admin-content:has(> .admin-controls-panel) > .admin-kpis), .shell :global(.admin-content:has(> .admin-controls-panel) > .admin-overview-workspace) { grid-column: 1; margin-bottom: 0; }
+.shell :global(.admin-content:has(> .admin-controls-panel) > .admin-content-heading) { grid-row: 1; }
+.shell :global(.admin-content:has(> .admin-controls-panel) > .admin-kpis) { grid-row: 2; align-self: start; }
+.shell :global(.admin-content:has(> .admin-controls-panel) > .admin-overview-workspace) { grid-row: 3; }
+.shell :global(.admin-content:has(> .admin-notice) > .admin-notice) { grid-row: 2; }
+.shell :global(.admin-content:has(> .admin-notice) > .admin-kpis) { grid-row: 3; }
+.shell :global(.admin-content:has(> .admin-notice) > .admin-overview-workspace) { grid-row: 4; }
+.shell :global(.admin-content-heading), .shell :global(.admin-hub-heading), .shell :global(.admin-settings-heading) { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.shell :global(.admin-content-heading h1), .shell :global(.admin-hub-heading h2), .shell :global(.admin-settings-heading h2) { margin-top: 4px; font-size: 28px; font-weight: 600; }
+.shell :global(.admin-content-heading p), .shell :global(.admin-hub-heading p:not(.admin-eyebrow)), .shell :global(.admin-settings-heading p:not(.admin-eyebrow)) { margin-top: 6px; color: var(--admin-subtle); }
+.shell :global(.admin-week-badge) { flex: 0 0 auto; padding: 7px 12px; border: 1px solid var(--admin-border); border-radius: 999px; color: var(--admin-subtle); background: var(--admin-card); font-size: 12px; font-weight: 600; }
+.shell :global(.admin-notice) { margin-bottom: 20px; padding: 12px 14px; border: 1px solid var(--admin-border); border-radius: 10px; color: var(--admin-subtle); background: var(--admin-card); }
+.shell :global(.admin-content:has(.admin-hub-page) > .admin-content-heading) { display: none; }
+
+.shell :global(.admin-kpis) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 32px; }
+.shell :global(.admin-kpis button) { display: flex; width: 100%; min-height: 138px; flex-direction: column; align-items: flex-start; padding: 20px; border: 1px solid var(--admin-border); border-radius: 12px; color: var(--admin-text); background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 5%); text-align: left; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.shell :global(.admin-kpis button:hover) { border-color: var(--admin-primary); box-shadow: 0 4px 12px rgb(0 0 0 / 9%); transform: translateY(-1px); }
+.shell :global(.admin-kpis span) { color: var(--admin-subtle); font-weight: 500; }
+.shell :global(.admin-kpis strong) { display: block; margin-top: 16px; font-size: 30px; line-height: 1.2; }
+.shell :global(.admin-kpis small) { display: block; margin-top: auto; padding-top: 8px; color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-kpis .admin-kpi-alert) { border-color: #fecaca; background: var(--admin-card); }
+.shell :global(.admin-kpis .admin-kpi-alert span), .shell :global(.admin-kpis .admin-kpi-alert strong), .shell :global(.admin-kpis .admin-kpi-alert small) { color: var(--admin-danger); }
+
+.shell :global(.admin-overview-workspace) { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 470px; overflow: hidden; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 3%); }
+.shell :global(.admin-overview-main) { min-width: 0; padding: 24px; border-right: 1px solid var(--admin-border); }
+.shell :global(.admin-section-heading), .shell :global(.admin-screening-heading), .shell :global(.admin-screening-summary), .shell :global(.admin-hub-card-heading) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shell :global(.admin-section-heading) { margin-bottom: 16px; }
+.shell :global(.admin-section-heading h2) { font-size: 18px; font-weight: 500; }
+.shell :global(.admin-section-heading button) { min-height: 32px; padding: 0; border: 0; color: var(--admin-subtle); background: transparent; font-size: 12px; font-weight: 500; }
+.shell :global(.admin-schedule-placeholder) { display: flex; min-height: 390px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px 20px; border: 1px solid var(--admin-border); border-radius: 12px; color: var(--admin-subtle); background: var(--admin-card); text-align: center; }
+.shell :global(.admin-schedule-placeholder > svg), .shell :global(.admin-placeholder-icon) { display: flex; width: 56px; height: 56px; align-items: center; justify-content: center; padding: 14px; border-radius: 16px; color: var(--admin-subtle); background: var(--admin-bg); }
+.shell :global(.admin-schedule-placeholder h3) { color: var(--admin-text); font-size: 16px; }
+.shell :global(.admin-schedule-placeholder p) { max-width: 360px; font-size: 13px; }
+
+.shell :global(.admin-screening) { min-width: 0; padding: 24px; background: var(--admin-bg); }
+.shell :global(.admin-screening-heading h2) { font-size: 18px; font-weight: 600; }
+.shell :global(.admin-screening-heading button) { display: flex; width: 32px; height: 32px; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-subtle); background: var(--admin-card); }
+.shell :global(.admin-tabs) { display: grid; grid-template-columns: 1fr 1fr; margin: 18px 0; padding: 3px; border-radius: 10px; background: var(--admin-muted); }
+.shell :global(.admin-tabs button) { min-height: 36px; border: 0; border-radius: 8px; color: var(--admin-subtle); background: transparent; font-size: 12px; }
+.shell :global(.admin-tabs button.is-active) { color: var(--admin-text); background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 8%); }
+.shell :global(.admin-screening-summary strong) { font-size: 14px; }
+.shell :global(.admin-screening-summary span) { color: var(--admin-subtle); font-size: 11px; }
+.shell :global(.admin-filter-pills) { display: flex; gap: 6px; margin: 14px 0; overflow-x: auto; }
+.shell :global(.admin-filter-pills button) { min-height: 28px; padding: 0 10px; border: 1px solid var(--admin-border); border-radius: 999px; color: var(--admin-subtle); background: var(--admin-card); font-size: 11px; white-space: nowrap; }
+.shell :global(.admin-filter-pills button:hover) { border-color: var(--admin-primary); color: var(--admin-text); }
+.shell :global(.admin-filter-pills button.is-active) { border-color: var(--admin-primary); color: var(--admin-primary-contrast); background: var(--admin-primary); }
+.shell :global(.admin-assignment-list) { display: flex; flex-direction: column; gap: 8px; }
+.shell :global(.admin-assignment-empty) { display: grid; min-height: 180px; place-items: center; padding: 24px 16px; border: 1px dashed var(--admin-border); border-radius: 10px; color: var(--admin-subtle); background: var(--admin-card); font-size: 12px; text-align: center; }
+
+/* Admin controls use the employee action-panel treatment. */
+.shell :global(.admin-controls-panel) { position: sticky; top: 0; display: flex; grid-column: 2; grid-row: 2 / span 2; max-height: calc(100svh - 144px); flex-direction: column; gap: 28px; overflow-y: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); scrollbar-color: var(--admin-border) transparent; scrollbar-width: thin; }
+.shell :global(.admin-content:has(> .admin-notice) > .admin-controls-panel) { grid-row: 3 / span 2; }
+.shell :global(.admin-controls-panel h2) { font-size: 20px; font-weight: 600; }
+.shell :global(.admin-controls-panel > div > p) { margin-top: 4px; color: var(--admin-subtle); }
+.shell :global(.admin-controls-panel h3) { margin-bottom: 12px; color: var(--admin-subtle); font-size: 12px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+.shell :global(.admin-control-actions) { display: flex; flex-direction: column; gap: 8px; }
+.shell :global(.admin-control-actions button), .shell :global(.admin-control-primary) { display: flex; min-height: 44px; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-subtle); background: var(--admin-card); font-weight: 500; text-align: left; }
+.shell :global(.admin-control-actions button:hover) { background: var(--admin-bg); }
+.shell :global(.admin-control-actions .admin-control-primary), .shell :global(.admin-control-primary) { border-color: var(--admin-primary); color: var(--admin-primary-contrast); background: var(--admin-primary); }
+.shell :global(.admin-control-actions .admin-control-primary:hover), .shell :global(.admin-control-primary:hover) { color: #111111; background: var(--admin-card); }
+.shell :global(.admin-staffing-alert) { padding: 14px; border: 1px solid #fecaca; border-radius: 9px; background: var(--admin-danger-soft); }
+.shell :global(.admin-staffing-alert div) { display: flex; align-items: center; gap: 8px; color: var(--admin-danger); font-size: 12px; }
+.shell :global(.admin-staffing-alert button) { width: 100%; min-height: 38px; margin-top: 14px; border: 1px solid #fecaca; border-radius: 8px; color: var(--admin-danger); background: var(--admin-card); font-size: 11px; font-weight: 600; }
+.shell :global(.admin-selected-empty) { display: flex; min-height: 150px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; border: 1px dashed var(--admin-border); border-radius: 9px; color: var(--admin-subtle); text-align: center; }
+.shell :global(.admin-selected-empty p) { max-width: 210px; font-size: 12px; }
+
+/* Placeholder pages. */
+.shell :global(.admin-placeholder) { display: flex; min-height: 430px; flex-direction: column; align-items: center; justify-content: center; padding: 32px 20px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); text-align: center; }
+.shell :global(.admin-placeholder h2) { margin-top: 14px; font-size: 19px; }
+.shell :global(.admin-placeholder p) { max-width: 420px; margin-top: 6px; color: var(--admin-subtle); font-size: 13px; }
+.shell :global(.admin-placeholder button), .shell :global(.admin-settings-back) { min-height: 40px; padding: 8px 14px; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-text); background: var(--admin-card); font-weight: 600; }
+.shell :global(.admin-placeholder button) { margin-top: 20px; background: var(--admin-bg); }
+
+/* Admin Hub and appearance settings. */
+.shell :global(.admin-eyebrow) { color: var(--admin-primary); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.shell :global(.admin-hub-layout) { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: start; }
+.shell :global(.admin-hub-tabs) { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); }
+.shell :global(.admin-hub-tabs button) { min-height: 42px; padding: 9px 12px; border: 1px solid transparent; border-radius: 9px; color: var(--admin-subtle); background: transparent; font-weight: 500; text-align: left; }
+.shell :global(.admin-hub-tabs button:hover) { background: var(--admin-bg); }
+.shell :global(.admin-hub-tabs button.is-active) { border-color: var(--admin-border); color: var(--admin-text); background: var(--admin-bg); font-weight: 600; }
+.shell :global(.admin-hub-content) { min-width: 0; }
+.shell :global(.admin-hub-card), .shell :global(.admin-settings-card) { margin-bottom: 20px; padding: 24px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); }
+.shell :global(.admin-hub-card h3), .shell :global(.admin-settings-card h3) { font-size: 17px; font-weight: 600; }
+.shell :global(.admin-hub-card p), .shell :global(.admin-settings-card > p) { margin-top: 5px; color: var(--admin-subtle); }
+.shell :global(.admin-hub-empty) { display: flex; min-height: 230px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin-top: 22px; padding: 24px; border: 1px dashed var(--admin-border); border-radius: 10px; color: var(--admin-subtle); background: var(--admin-bg); text-align: center; }
+.shell :global(.admin-hub-empty p) { max-width: 360px; margin-top: 0; }
+.shell :global(.admin-employee-list) { display: flex; flex-direction: column; gap: 8px; margin-top: 22px; }
+.shell :global(.admin-employee-row) { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--admin-border); border-radius: 10px; background: var(--admin-bg); }
+.shell :global(.admin-employee-avatar) { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--admin-border); border-radius: 50%; color: var(--admin-text); background: var(--admin-muted); font-size: 11px; font-weight: 700; }
+.shell :global(.admin-employee-row > div) { display: flex; min-width: 0; flex-direction: column; }
+.shell :global(.admin-employee-row > div strong), .shell :global(.admin-employee-row > div span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell :global(.admin-employee-row > div span) { color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-employee-team), .shell :global(.admin-employee-role) { padding: 4px 8px; border: 1px solid var(--admin-border); border-radius: 999px; color: var(--admin-subtle); background: var(--admin-card); font-size: 11px; white-space: nowrap; }
+.shell :global(.admin-role-info) { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; margin-top: 16px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 9px; background: var(--admin-bg); }
+.shell :global(.admin-role-info strong) { font-size: 12px; }
+.shell :global(.admin-role-info span) { color: var(--admin-subtle); font-size: 13px; }
+.shell :global(.admin-hub-appearance .admin-settings-page) { max-width: none; }
+.shell :global(.admin-hub-appearance .admin-settings-heading) { display: none; }
+.shell :global(.admin-settings-page) { max-width: 920px; }
+.shell :global(.admin-mode-options) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+.shell :global(.admin-mode-options button) { display: flex; min-height: 68px; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--admin-border); border-radius: 10px; color: var(--admin-text); background: var(--admin-bg); text-align: left; }
+.shell :global(.admin-mode-options button:hover), .shell :global(.admin-mode-options button.is-selected) { border-color: var(--admin-primary); }
+.shell :global(.admin-mode-options button.is-selected) { box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-primary) 20%, transparent); }
+.shell :global(.admin-mode-options button > span) { display: flex; flex-direction: column; }
+.shell :global(.admin-mode-options strong) { font-size: 13px; }
+.shell :global(.admin-mode-options small) { color: var(--admin-subtle); font-size: 11px; }
+.shell :global(.admin-theme-options) { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+.shell :global(.admin-theme-option) { display: flex; min-height: 64px; align-items: center; gap: 9px; padding: 12px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-bg); font-weight: 600; text-align: left; }
+.shell :global(.admin-theme-option:hover), .shell :global(.admin-theme-option.is-selected) { border-color: var(--admin-primary); }
+.shell :global(.admin-theme-option.is-selected) { box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-primary) 20%, transparent); }
+.shell :global(.admin-theme-swatch) { width: 18px; height: 18px; flex: 0 0 auto; border-radius: 50%; background: var(--admin-primary); }
+.shell :global(.admin-theme-swatch.admin-theme-ocean) { background: #075985; }
+.shell :global(.admin-theme-swatch.admin-theme-forest) { background: #166534; }
+.shell :global(.admin-theme-swatch.admin-theme-sunset) { background: #9a3412; }
+.shell :global(.admin-theme-swatch.admin-theme-custom) { background: conic-gradient(#075985, #166534, #9a3412, #343432); }
+.shell :global(.admin-custom-colors) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+.shell :global(.admin-color-control) { display: flex; min-height: 58px; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--admin-border); border-radius: 9px; background: var(--admin-bg); cursor: pointer; }
+.shell :global(.admin-color-control input) { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 7px; background: transparent; cursor: pointer; }
+.shell :global(.admin-color-control span) { display: flex; flex-direction: column; gap: 2px; color: var(--admin-text); font-size: 11px; font-weight: 600; }
+.shell :global(.admin-color-control small) { color: var(--admin-subtle); font-size: 9px; font-weight: 500; }
+
+/* Notifications follow the employee overlay. */
+.shell :global(.admin-overlay) { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-start; justify-content: flex-end; padding: 88px 24px 24px; background: rgb(44 44 42 / 18%); }
+.shell :global(.admin-notifications-panel) { width: min(380px, 100%); max-height: min(560px, calc(100svh - 112px)); overflow-y: auto; padding: 20px; border: 1px solid var(--admin-border); border-radius: 14px; background: var(--admin-card); box-shadow: 0 18px 48px rgb(0 0 0 / 18%); }
+.shell :global(.admin-overlay-heading) { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--admin-border); }
+.shell :global(.admin-overlay-heading h2) { margin-top: 4px; font-size: 20px; }
+.shell :global(.admin-overlay-heading button) { display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; border-radius: 50%; color: var(--admin-subtle); background: var(--admin-muted); font-size: 20px; }
+.shell :global(.admin-notifications-empty) { display: flex; min-height: 240px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--admin-subtle); text-align: center; }
+.shell :global(.admin-notifications-empty h3) { color: var(--admin-text); font-size: 16px; }
+.shell :global(.admin-notifications-empty p) { max-width: 270px; font-size: 12px; }
+.shell :global(.admin-notifications-footer) { display: flex; justify-content: flex-start; padding-top: 14px; border-top: 1px solid var(--admin-border); }
+.shell :global(.admin-mark-read) { min-height: 34px; padding: 4px 8px; border: 0; border-radius: 7px; color: var(--admin-subtle); background: transparent; font-size: 12px; font-weight: 600; }
+.shell :global(.admin-mark-read:hover) { color: var(--admin-text); background: var(--admin-bg); }
+
+/* Local add-employee workflow. */
+.shell :global(.admin-modal-overlay) { position: fixed; inset: 0; z-index: 220; display: grid; place-items: center; overflow-y: auto; padding: 24px; background: rgb(22 22 20 / 42%); backdrop-filter: blur(2px); }
+.shell :global(.admin-employee-modal) { width: min(520px, 100%); max-height: calc(100svh - 48px); overflow-y: auto; padding: 24px; border: 1px solid var(--admin-border); border-radius: 16px; color: var(--admin-text); background: var(--admin-card); box-shadow: 0 24px 64px rgb(0 0 0 / 24%); }
+.shell :global(.admin-modal-heading) { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--admin-border); }
+.shell :global(.admin-modal-heading h2) { margin-top: 4px; font-size: 22px; }
+.shell :global(.admin-modal-heading p:not(.admin-eyebrow)) { margin-top: 5px; color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-modal-heading > button) { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; padding: 0; border: 0; border-radius: 50%; color: var(--admin-subtle); background: var(--admin-muted); }
+.shell :global(.admin-employee-form) { display: flex; flex-direction: column; gap: 16px; padding-top: 20px; }
+.shell :global(.admin-employee-form label) { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+.shell :global(.admin-employee-form label > span) { color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.shell :global(.admin-employee-form input), .shell :global(.admin-employee-form select) { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-bg); }
+.shell :global(.admin-form-row) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.shell :global(.admin-role-fieldset) { min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--admin-border); border-radius: 10px; }
+.shell :global(.admin-role-fieldset legend) { padding: 0 5px; color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.shell :global(.admin-role-fieldset > p) { margin-bottom: 10px; color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-role-options) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.shell :global(.admin-role-options label) { display: flex; min-height: 42px; flex-direction: row; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-text); background: var(--admin-bg); cursor: pointer; }
+.shell :global(.admin-role-options input) { width: 16px; height: 16px; min-height: 0; flex: 0 0 16px; padding: 0; accent-color: var(--admin-primary); }
+.shell :global(.admin-role-options label > span) { color: var(--admin-text); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.shell :global(.admin-form-error) { display: block; margin-top: 9px; color: var(--admin-danger); font-size: 12px; }
+.shell :global(.admin-modal-actions) { display: flex; justify-content: flex-end; gap: 10px; padding-top: 6px; }
+.shell :global(.admin-modal-actions button) { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-card); font-weight: 600; }
+.shell :global(.admin-modal-actions .admin-control-primary) { border-color: var(--admin-primary); color: var(--admin-primary-contrast); background: var(--admin-primary); }
+
+@media (max-width: 1100px) {
+  .shell :global(.admin-search), .shell :global(.admin-user-name) { display: none; }
+  .shell :global(.admin-content:has(> .admin-controls-panel)) { display: block; }
+  .shell :global(.admin-kpis) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shell :global(.admin-overview-workspace) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
+  .shell :global(.admin-overview-main), .shell :global(.admin-screening) { border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); }
+  .shell :global(.admin-overview-main) { border-right: 1px solid var(--admin-border); }
+  .shell :global(.admin-controls-panel) { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; margin-top: 32px; overflow: visible; }
+}
+
+@media (max-width: 900px) {
+  .shell { --admin-sidebar-width: 184px; }
+  .shell :global(.admin-content) { padding: 24px; }
+  .shell :global(.admin-hub-layout) { grid-template-columns: 1fr; }
+  .shell :global(.admin-hub-tabs) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shell :global(.admin-hub-card-heading) { align-items: flex-start; }
+}
+
+@media (max-width: 767px) {
+  .shell, .shell:global(.admin-shell-collapsed) { display: block; }
+  .shell :global(.admin-main) { height: 100svh; }
+  .shell :global(.admin-sidebar) { position: fixed; inset: auto 0 0; z-index: 40; display: flex; width: 100%; height: auto; max-height: 76px; flex-direction: row; align-items: stretch; overflow: hidden; border-top: 1px solid var(--admin-border); border-right: 0; background: var(--admin-card); }
+  .shell :global(.admin-sidebar .page-brand), .shell :global(.admin-collapse) { display: none; }
+  .shell :global(.admin-nav) { display: flex; flex: 1 1 auto; gap: 2px; overflow-x: auto; padding: 4px 6px max(8px, env(safe-area-inset-bottom)); scrollbar-width: none; }
+  .shell :global(.admin-nav::-webkit-scrollbar) { display: none; }
+  .shell :global(.admin-sidebar-footer) { display: flex; flex: 0 0 auto; gap: 2px; padding: 4px 6px max(8px, env(safe-area-inset-bottom)) 0; border-top: 0; border-left: 1px solid var(--admin-border); }
+  .shell :global(.admin-nav-item), .shell:global(.admin-shell-collapsed) :global(.admin-nav-item) { width: 68px; min-width: 68px; min-height: 52px; flex: 0 0 68px; flex-direction: column; justify-content: center; gap: 2px; margin: 0; padding: 5px 4px; border: 0; border-radius: 10px; text-align: center; }
+  .shell :global(.admin-nav-item span), .shell:global(.admin-shell-collapsed) :global(.admin-nav-item span) { width: auto; max-width: 64px; overflow: hidden; font-size: 9px; line-height: 1.2; opacity: 1; text-overflow: ellipsis; }
+  .shell :global(.admin-nav-item.is-active) { color: var(--admin-primary); background: var(--admin-bg); box-shadow: none; }
+  .shell :global(.admin-header) { min-height: 56px; padding: 8px 16px; }
+  .shell :global(.admin-header-title h1) { font-size: 18px; }
+  .shell :global(.admin-header-title p) { font-size: 12px; }
+  .shell :global(.admin-user-avatar), .shell :global(.admin-settings-button) { display: none; }
+  .shell :global(.admin-header-icon) { width: 40px; height: 40px; }
+  .shell :global(.admin-content) { padding: 24px 24px 104px; }
+  .shell :global(.admin-overview-workspace) { grid-template-columns: 1fr; }
+  .shell :global(.admin-content-heading h1), .shell :global(.admin-hub-heading h2), .shell :global(.admin-settings-heading h2) { font-size: 24px; }
+  .shell :global(.admin-controls-panel) { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .shell :global(.admin-content) { padding-inline: 16px; }
+  .shell :global(.admin-header-title p) { display: none; }
+  .shell :global(.admin-content-heading), .shell :global(.admin-hub-heading), .shell :global(.admin-settings-heading) { flex-direction: column; }
+  .shell :global(.admin-kpis) { gap: 10px; }
+  .shell :global(.admin-kpis button) { min-height: 124px; padding: 16px; }
+  .shell :global(.admin-overview-main), .shell :global(.admin-screening), .shell :global(.admin-controls-panel), .shell :global(.admin-hub-card), .shell :global(.admin-settings-card) { padding: 18px; }
+  .shell :global(.admin-theme-options) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shell :global(.admin-custom-colors), .shell :global(.admin-role-info) { grid-template-columns: 1fr; }
+  .shell :global(.admin-employee-row) { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .shell :global(.admin-employee-role) { display: none; }
+  .shell :global(.admin-overlay) { padding: 72px 12px 12px; }
+}
+
+@media (max-width: 420px) {
+  .shell :global(.admin-kpis) { grid-template-columns: 1fr; }
+  .shell :global(.admin-kpis button) { min-height: 118px; }
+  .shell :global(.admin-hub-tabs) { grid-template-columns: 1fr; }
+  .shell :global(.admin-week-badge) { display: none; }
+  .shell :global(.admin-hub-card-heading) { flex-direction: column; }
+  .shell :global(.admin-hub-card-heading .admin-control-primary) { width: 100%; justify-content: center; }
+  .shell :global(.admin-mode-options), .shell :global(.admin-form-row) { grid-template-columns: 1fr; }
+  .shell :global(.admin-employee-row) { grid-template-columns: 36px minmax(0, 1fr); }
+  .shell :global(.admin-employee-avatar) { width: 36px; height: 36px; }
+  .shell :global(.admin-employee-team) { display: block; grid-column: 2; justify-self: start; }
+  .shell :global(.admin-modal-overlay) { align-items: end; padding: 0; }
+  .shell :global(.admin-employee-modal) { width: 100%; max-height: min(92svh, 720px); padding: 20px 16px max(20px, env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: 18px 18px 0 0; }
+  .shell :global(.admin-modal-actions) { display: grid; grid-template-columns: 1fr 1fr; }
+  .shell :global(.admin-modal-actions button) { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell, .shell *, .shell *::before, .shell *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
