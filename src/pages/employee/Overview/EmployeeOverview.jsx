@@ -32,6 +32,12 @@ function addDays(date, days) {
   return nextDate
 }
 
+function addMonths(date, months) {
+  const nextDate = new Date(date)
+  nextDate.setMonth(nextDate.getMonth() + months)
+  return nextDate
+}
+
 function dateKey(date) {
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
 }
@@ -40,9 +46,46 @@ function localTimeZoneLabel() {
   return new Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"
 }
 
-function buildUpcomingCalendar(assignments, anchorDate) {
-  const start = startOfLocalDay(anchorDate)
-  const days = Array.from({ length: 7 }, (_, index) => {
+function startOfWeek(date) {
+  const start = startOfLocalDay(date)
+  const day = start.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
+  return addDays(start, mondayOffset)
+}
+
+function startOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+function endOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
+
+function calendarWindow(view, selectedDate) {
+  if (view === "day") return { start: startOfLocalDay(selectedDate), length: 1 }
+  if (view === "month") {
+    const monthStart = startOfMonth(selectedDate)
+    const monthEnd = endOfMonth(selectedDate)
+    const start = startOfWeek(monthStart)
+    const end = addDays(startOfWeek(monthEnd), 6)
+    const length = Math.round((end - start) / 86400000) + 1
+    return { start, length }
+  }
+  return { start: startOfWeek(selectedDate), length: 7 }
+}
+
+function calendarRangeLabel(view, selectedDate) {
+  if (view === "day") return formatAssignmentDate(selectedDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  if (view === "month") return formatAssignmentDate(selectedDate, { month: "long", year: "numeric" })
+  const { start } = calendarWindow("week", selectedDate)
+  const end = addDays(start, 6)
+  return `${formatAssignmentDate(start, { day: "numeric", month: "short" })} - ${formatAssignmentDate(end, { day: "numeric", month: "short", year: "numeric" })}`
+}
+
+function buildAssignmentCalendar(assignments, view, selectedDate) {
+  const { start, length } = calendarWindow(view, selectedDate)
+  const end = addDays(start, length - 1)
+  const days = Array.from({ length }, (_, index) => {
     const date = addDays(start, index)
     return { date, key: dateKey(date), assignments: [] }
   })
@@ -59,7 +102,7 @@ function buildUpcomingCalendar(assignments, anchorDate) {
     if (startDate < start) return
     const day = daysByKey.get(dateKey(startDate))
     if (day) day.assignments.push(assignment)
-    else later.push(assignment)
+    else if (startDate > end) later.push(assignment)
   })
 
   days.forEach((day) => day.assignments.sort((a, b) => assignmentStartDate(a) - assignmentStartDate(b)))
@@ -92,6 +135,8 @@ export default function EmployeeOverview() {
   const [notificationsRead, setNotificationsRead] = useState(false)
   const [assignmentsState, setAssignmentsState] = useState({ items: [], loading: false, error: "" })
   const [assignmentLoadAttempt, setAssignmentLoadAttempt] = useState(0)
+  const [calendarView, setCalendarView] = useState("week")
+  const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()))
   const [selectedAssignment, setSelectedAssignment] = useState(null)
   const [contactInfo, setContactInfo] = useState(storedContactInfo)
   const [contactDraft, setContactDraft] = useState(storedContactInfo)
@@ -157,6 +202,19 @@ export default function EmployeeOverview() {
     setAssignmentsState((current) => ({ ...current, loading: true, error: "" }))
     setAssignmentLoadAttempt((value) => value + 1)
   }
+  function changeCalendarView(view) {
+    setCalendarView(view)
+  }
+  function moveCalendar(direction) {
+    setSelectedDate((current) => {
+      if (calendarView === "day") return addDays(current, direction)
+      if (calendarView === "month") return addMonths(current, direction)
+      return addDays(current, direction * 7)
+    })
+  }
+  function jumpToToday() {
+    setSelectedDate(startOfLocalDay(new Date()))
+  }
   function openAssignmentDetails(assignment) {
     setSelectedAssignment(assignment)
   }
@@ -184,18 +242,24 @@ export default function EmployeeOverview() {
 
   function renderSchedule() {
     const assignments = assignmentsState.items
-    const calendar = buildUpcomingCalendar(assignments, today)
+    const calendar = buildAssignmentCalendar(assignments, calendarView, selectedDate)
     const visibleCalendarCount = calendar.days.reduce((count, day) => count + day.assignments.length, 0)
     return <section className="employee-page-view employee-schedule-view" aria-labelledby="schedule-title">
       <div className="employee-view-heading"><div><p className="employee-eyebrow">Planning</p><h2 id="schedule-title">My Schedule</h2><p>Open an assignment to review the permitted details before work starts.</p></div><button className="employee-secondary-button" onClick={() => changeView("overview")}><Icon name="chevron-left" size={16} /> Overview</button></div>
       {assignmentsState.error && <div className="page-error employee-profile-error" role="alert"><span>{assignmentsState.error}</span><button onClick={retryAssignments}>Try again</button></div>}
-      <div className="employee-week-toolbar"><button aria-label="Previous period" onClick={() => unavailable("Calendar navigation")}><Icon name="chevron-left" /></button><strong>Upcoming 7 days</strong><button aria-label="Next period" onClick={() => unavailable("Calendar navigation")}><Icon name="chevron-right" /></button></div>
+      <div className="employee-calendar-controls">
+        <div className="employee-week-toolbar"><button aria-label="Previous period" onClick={() => moveCalendar(-1)}><Icon name="chevron-left" /></button><strong>{calendarRangeLabel(calendarView, selectedDate)}</strong><button aria-label="Next period" onClick={() => moveCalendar(1)}><Icon name="chevron-right" /></button></div>
+        <div className="employee-calendar-actions" aria-label="Calendar view controls">
+          {["day", "week", "month"].map((view) => <button key={view} type="button" className={calendarView === view ? "is-active" : ""} onClick={() => changeCalendarView(view)} aria-pressed={calendarView === view}>{view}</button>)}
+          <button type="button" onClick={jumpToToday}>Today</button>
+        </div>
+      </div>
       <div className="employee-schedule-grid">
         {assignmentsState.loading ? <div className="employee-schedule-empty" role="status"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>Loading assignments</h3><p>Fetching the work the server permits you to view.</p></div>
           : assignments.length === 0 ? <div className="employee-schedule-empty"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>No assignment details available</h3><p>Your assigned work will appear here when the backend returns permitted assignments for your account.</p><button className="employee-outline-button" onClick={retryAssignments}><Icon name="calendar" size={15} /> Check for updates</button></div>
             : <>
-              <div className="employee-calendar-meta"><span>{visibleCalendarCount} assignment{visibleCalendarCount === 1 ? "" : "s"} in this window</span><span>Times shown in {localTimeZoneLabel()}</span></div>
-              <div className="employee-calendar-grid" aria-label="Upcoming assignment calendar">{calendar.days.map((day) => <section className="employee-calendar-day" key={day.key} aria-labelledby={`employee-calendar-day-${day.key}`}><header><span>{formatAssignmentDate(day.date, { weekday: "short" })}</span><strong id={`employee-calendar-day-${day.key}`}>{formatAssignmentDate(day.date, { day: "numeric" })}</strong><small>{formatAssignmentDate(day.date, { month: "short" })}</small></header>{day.assignments.length === 0 ? <p>No work</p> : <div>{day.assignments.map((assignment) => <button className="employee-calendar-event" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><time dateTime={assignment.startTime}>{formatAssignmentDate(assignment.startTime, { timeStyle: "short" })}</time><span>{assignment.name || `Assignment ${assignment.id}`}</span><small>{assignment.address || "No location provided"}</small></button>)}</div>}</section>)}</div>
+              <div className="employee-calendar-meta"><span>{visibleCalendarCount} assignment{visibleCalendarCount === 1 ? "" : "s"} in this {calendarView}</span><span>Times shown in {localTimeZoneLabel()}</span></div>
+              <div className={`employee-calendar-grid employee-calendar-grid-${calendarView}`} aria-label={`${calendarView} assignment calendar`}>{calendar.days.map((day) => <section className="employee-calendar-day" key={day.key} aria-labelledby={`employee-calendar-day-${day.key}`}><header><span>{formatAssignmentDate(day.date, { weekday: "short" })}</span><strong id={`employee-calendar-day-${day.key}`}>{formatAssignmentDate(day.date, { day: "numeric" })}</strong><small>{formatAssignmentDate(day.date, { month: "short" })}</small></header>{day.assignments.length === 0 ? <p>No work</p> : <div>{day.assignments.map((assignment) => <button className="employee-calendar-event" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><time dateTime={assignment.startTime}>{formatAssignmentDate(assignment.startTime, { timeStyle: "short" })}</time><span>{assignment.name || `Assignment ${assignment.id}`}</span><small>{assignment.address || "No location provided"}</small></button>)}</div>}</section>)}</div>
               {(calendar.later.length > 0 || calendar.unscheduled.length > 0) && <section className="employee-calendar-extra" aria-label="Additional assignments"><h3>More assigned work</h3><div className="employee-assignment-list">{[...calendar.later, ...calendar.unscheduled].map((assignment) => <button className="employee-assignment-card" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><span><strong>{assignment.name || `Assignment ${assignment.id}`}</strong><small>{formatAssignmentDate(assignment.startTime)} · {assignment.address || "No location provided"}</small></span><em>{assignmentStatus(assignment)}</em><Icon name="chevron-right" size={16} /></button>)}</div></section>}
             </>}
       </div>

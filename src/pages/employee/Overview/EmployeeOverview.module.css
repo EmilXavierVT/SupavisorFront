@@ -139,12 +139,65 @@
   font-size: 12px;
 }
 
+.shell :global(.employee-calendar-controls) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.shell :global(.employee-calendar-controls .employee-week-toolbar) {
+  margin-bottom: 0;
+}
+
+.shell :global(.employee-calendar-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--page-border);
+  border-radius: 10px;
+  background: var(--page-card);
+}
+
+.shell :global(.employee-calendar-actions button) {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--page-subtle);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.shell :global(.employee-calendar-actions button:hover),
+.shell :global(.employee-calendar-actions button.is-active) {
+  color: var(--page-foreground);
+  background: var(--page-muted);
+}
+
+.shell :global(.employee-calendar-actions button.is-active) {
+  box-shadow: inset 0 0 0 1px var(--page-border);
+}
+
 .shell :global(.employee-calendar-grid) {
   display: grid;
   grid-template-columns: repeat(7, minmax(116px, 1fr));
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 4px;
+}
+
+.shell :global(.employee-calendar-grid-day) {
+  grid-template-columns: minmax(260px, 1fr);
+}
+
+.shell :global(.employee-calendar-grid-month) {
+  grid-template-columns: repeat(7, minmax(116px, 1fr));
 }
 
 .shell :global(.employee-calendar-day) {
@@ -528,6 +581,10 @@
     grid-template-columns: repeat(7, minmax(168px, 1fr));
     margin-inline: -16px;
     padding-inline: 16px;
+  }
+
+  .shell :global(.employee-calendar-grid-day) {
+    grid-template-columns: minmax(240px, 1fr);
   }
 
   .shell :global(.employee-assignment-card em) {
