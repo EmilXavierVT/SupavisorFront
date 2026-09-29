@@ -88,7 +88,7 @@
 .shell :global(.admin-notice) { margin-bottom: 20px; padding: 12px 14px; border: 1px solid var(--admin-border); border-radius: 10px; color: var(--admin-subtle); background: var(--admin-card); }
 .shell :global(.admin-content:has(.admin-hub-page) > .admin-content-heading) { display: none; }
 
-.shell :global(.admin-kpis) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 32px; }
+.shell :global(.admin-kpis) { display: none; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 32px; }
 .shell :global(.admin-kpis button) { display: flex; width: 100%; min-height: 138px; flex-direction: column; align-items: flex-start; padding: 20px; border: 1px solid var(--admin-border); border-radius: 12px; color: var(--admin-text); background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 5%); text-align: left; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 .shell :global(.admin-kpis button:hover) { border-color: var(--admin-primary); box-shadow: 0 4px 12px rgb(0 0 0 / 9%); transform: translateY(-1px); }
 .shell :global(.admin-kpis span) { color: var(--admin-subtle); font-weight: 500; }
@@ -97,7 +97,22 @@
 .shell :global(.admin-kpis .admin-kpi-alert) { border-color: #fecaca; background: var(--admin-card); }
 .shell :global(.admin-kpis .admin-kpi-alert span), .shell :global(.admin-kpis .admin-kpi-alert strong), .shell :global(.admin-kpis .admin-kpi-alert small) { color: var(--admin-danger); }
 
-.shell :global(.admin-overview-workspace) { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 470px; overflow: hidden; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 3%); }
+.shell :global(.admin-overview-workspace) { display: none; grid-template-columns: minmax(0, 1fr) 320px; min-height: 470px; overflow: hidden; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 3%); }
+.shell :global(.admin-calendar-workspace) { grid-column: 1; min-width: 0; }
+.shell :global(.admin-calendar-panel) { padding: 24px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 3%); }
+.shell :global(.admin-calendar-weekdays) { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.shell :global(.admin-calendar-weekdays span) { min-width: 0; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; }
+.shell :global(.admin-calendar-grid) { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.shell :global(.admin-calendar-day) { min-height: 138px; padding: 8px; border: 1px solid var(--admin-border); border-radius: 10px; background: var(--admin-bg); transition: border-color 160ms ease, background 160ms ease; }
+.shell :global(.admin-calendar-day.is-muted) { opacity: .55; }
+.shell :global(.admin-calendar-day.is-today) { border-color: var(--admin-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-primary) 14%, transparent); }
+.shell :global(.admin-calendar-day:has(.admin-calendar-event):hover) { border-color: var(--admin-primary); }
+.shell :global(.admin-calendar-date) { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--admin-subtle); font-size: 12px; font-weight: 700; }
+.shell :global(.admin-calendar-event) { display: flex; width: 100%; flex-direction: column; gap: 2px; margin-bottom: 6px; padding: 8px; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-text); background: var(--admin-card); text-align: left; cursor: grab; }
+.shell :global(.admin-calendar-event:active) { cursor: grabbing; }
+.shell :global(.admin-calendar-event strong) { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.shell :global(.admin-calendar-event span), .shell :global(.admin-calendar-event small), .shell :global(.admin-calendar-empty) { color: var(--admin-subtle); font-size: 10px; }
+.shell :global(.admin-calendar-empty) { margin: 0; }
 .shell :global(.admin-overview-main) { min-width: 0; padding: 24px; border-right: 1px solid var(--admin-border); }
 .shell :global(.admin-section-heading), .shell :global(.admin-screening-heading), .shell :global(.admin-screening-summary), .shell :global(.admin-hub-card-heading) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .shell :global(.admin-section-heading) { margin-bottom: 16px; }
@@ -134,6 +149,12 @@
 .shell :global(.admin-control-actions button:hover) { background: var(--admin-bg); }
 .shell :global(.admin-control-actions .admin-control-primary), .shell :global(.admin-control-primary) { border-color: var(--admin-primary); color: var(--admin-primary-contrast); background: var(--admin-primary); }
 .shell :global(.admin-control-actions .admin-control-primary:hover), .shell :global(.admin-control-primary:hover) { color: #111111; background: var(--admin-card); }
+.shell :global(.admin-quick-action-grid) { display: grid; gap: 10px; }
+.shell :global(.admin-quick-action-card) { display: flex; min-height: 88px; flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px; border: 1px solid var(--admin-border); border-radius: 10px; color: var(--admin-text); background: var(--admin-card); text-align: left; }
+.shell :global(.admin-quick-action-card:hover) { border-color: var(--admin-primary); background: var(--admin-bg); }
+.shell :global(.admin-quick-action-card.is-primary) { border-color: var(--admin-primary); }
+.shell :global(.admin-quick-action-card strong) { font-size: 13px; }
+.shell :global(.admin-quick-action-card span) { color: var(--admin-subtle); font-size: 11px; line-height: 1.35; }
 .shell :global(.admin-staffing-alert) { padding: 14px; border: 1px solid #fecaca; border-radius: 9px; background: var(--admin-danger-soft); }
 .shell :global(.admin-staffing-alert div) { display: flex; align-items: center; gap: 8px; color: var(--admin-danger); font-size: 12px; }
 .shell :global(.admin-staffing-alert button) { width: 100%; min-height: 38px; margin-top: 14px; border: 1px solid #fecaca; border-radius: 8px; color: var(--admin-danger); background: var(--admin-card); font-size: 11px; font-weight: 600; }
@@ -170,6 +191,17 @@
 .shell :global(.admin-role-info) { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; margin-top: 16px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 9px; background: var(--admin-bg); }
 .shell :global(.admin-role-info strong) { font-size: 12px; }
 .shell :global(.admin-role-info span) { color: var(--admin-subtle); font-size: 13px; }
+.shell :global(.admin-project-board) { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 16px; margin-top: 22px; overflow-x: auto; padding-bottom: 8px; }
+.shell :global(.admin-project-lane) { display: flex; min-height: 520px; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-bg); }
+.shell :global(.admin-project-lane-heading) { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 4px 8px; border-bottom: 1px solid var(--admin-border); }
+.shell :global(.admin-project-lane-heading h4) { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.shell :global(.admin-project-lane-heading span) { display: grid; min-width: 26px; height: 26px; place-items: center; border-radius: 999px; color: var(--admin-subtle); background: var(--admin-card); font-size: 12px; font-weight: 700; }
+.shell :global(.admin-project-card) { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--admin-border); border-radius: 10px; background: var(--admin-card); box-shadow: 0 1px 2px rgb(0 0 0 / 4%); }
+.shell :global(.admin-project-card strong) { overflow-wrap: anywhere; font-size: 14px; }
+.shell :global(.admin-project-card small), .shell :global(.admin-project-card span), .shell :global(.admin-project-empty) { color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-project-empty) { display: grid; min-height: 120px; place-items: center; margin: 0; border: 1px dashed var(--admin-border); border-radius: 10px; background: var(--admin-card); }
+.shell :global(.admin-economic-layout) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: 20px; align-items: start; }
+.shell :global(.admin-economic-row) { grid-template-columns: 40px minmax(0, 1fr) auto auto; }
 .shell :global(.admin-hub-appearance .admin-settings-page) { max-width: none; }
 .shell :global(.admin-hub-appearance .admin-settings-heading) { display: none; }
 .shell :global(.admin-settings-page) { max-width: 920px; }
@@ -220,6 +252,24 @@
 .shell :global(.admin-employee-form label > span) { color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .shell :global(.admin-employee-form input), .shell :global(.admin-employee-form select) { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-bg); }
 .shell :global(.admin-form-row) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.shell :global(.admin-assignment-modal) { max-width: min(760px, calc(100vw - 32px)); }
+.shell :global(.admin-assignment-form-grid) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.shell :global(.admin-assignment-active) { min-height: 44px; flex-direction: row !important; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--admin-border); border-radius: 9px; background: var(--admin-bg); }
+.shell :global(.admin-assignment-active input) { width: auto; min-height: auto; }
+.shell :global(.admin-assignment-date-card) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 280px); gap: 16px; align-items: center; margin-top: 4px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-bg); }
+.shell :global(.admin-assignment-date-card > div) { display: flex; align-items: center; gap: 12px; }
+.shell :global(.admin-assignment-date-card h3) { font-size: 15px; }
+.shell :global(.admin-assignment-date-card p) { margin-top: 3px; color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-project-assignment-picker) { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-bg); }
+.shell :global(.admin-project-assignment-picker h3) { font-size: 15px; }
+.shell :global(.admin-project-assignment-picker p) { margin-top: 3px; color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-project-assignment-list) { display: grid; max-height: 280px; gap: 8px; overflow-y: auto; padding-right: 4px; }
+.shell :global(.admin-project-assignment-option) { display: grid !important; grid-template-columns: auto minmax(0, 1fr); gap: 10px !important; align-items: flex-start; padding: 12px; border: 1px solid var(--admin-border); border-radius: 10px; background: var(--admin-card); cursor: pointer; }
+.shell :global(.admin-project-assignment-option.is-selected) { border-color: var(--admin-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-primary) 14%, transparent); }
+.shell :global(.admin-project-assignment-option input) { width: 16px; min-height: 16px; margin-top: 2px; accent-color: var(--admin-primary); }
+.shell :global(.admin-project-assignment-option span) { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.shell :global(.admin-project-assignment-option strong) { overflow-wrap: anywhere; color: var(--admin-text); font-size: 13px; }
+.shell :global(.admin-project-assignment-option small) { color: var(--admin-subtle); font-size: 11px; }
 .shell :global(.admin-role-fieldset) { min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--admin-border); border-radius: 10px; }
 .shell :global(.admin-role-fieldset legend) { padding: 0 5px; color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .shell :global(.admin-role-fieldset > p) { margin-bottom: 10px; color: var(--admin-subtle); font-size: 12px; }
@@ -248,6 +298,7 @@
   .shell :global(.admin-hub-layout) { grid-template-columns: 1fr; }
   .shell :global(.admin-hub-tabs) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shell :global(.admin-hub-card-heading) { align-items: flex-start; }
+  .shell :global(.admin-economic-layout) { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 767px) {
@@ -267,6 +318,11 @@
   .shell :global(.admin-user-avatar), .shell :global(.admin-settings-button) { display: none; }
   .shell :global(.admin-header-icon) { width: 40px; height: 40px; }
   .shell :global(.admin-content) { padding: 24px 24px 104px; }
+  .shell :global(.admin-calendar-panel) { padding: 16px; }
+  .shell :global(.admin-calendar-weekdays), .shell :global(.admin-calendar-grid) { gap: 4px; }
+  .shell :global(.admin-calendar-weekdays span) { padding: 0 4px; font-size: 9px; letter-spacing: 0; }
+  .shell :global(.admin-calendar-day) { min-height: 96px; padding: 5px; }
+  .shell :global(.admin-calendar-event) { padding: 6px; }
   .shell :global(.admin-overview-workspace) { grid-template-columns: 1fr; }
   .shell :global(.admin-content-heading h1), .shell :global(.admin-hub-heading h2), .shell :global(.admin-settings-heading h2) { font-size: 24px; }
   .shell :global(.admin-controls-panel) { grid-template-columns: 1fr; }
