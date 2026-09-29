@@ -114,17 +114,6 @@ function assignmentStatus(assignment) {
   return String(assignment?.state || (assignment?.isActive === false ? "inactive" : "planned")).replace(/_/g, " ").toLowerCase()
 }
 
-function assignmentResources(assignment) {
-  if (Array.isArray(assignment?.resources)) return assignment.resources
-  if (Array.isArray(assignment?.products)) return assignment.products
-  if (Array.isArray(assignment?.productIds)) return assignment.productIds.map((id) => ({ id, name: `Resource ${id}` }))
-  return []
-}
-
-function assignmentNotes(assignment) {
-  return assignment?.notes || assignment?.note || assignment?.description || assignment?.taskDescription || ""
-}
-
 export default function EmployeeOverview() {
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
@@ -268,8 +257,6 @@ export default function EmployeeOverview() {
 
   function renderAssignmentDetails() {
     if (!selectedAssignment) return null
-    const resources = assignmentResources(selectedAssignment)
-    const notes = assignmentNotes(selectedAssignment)
     return <div className="employee-overlay" role="presentation" onClick={closeAssignmentDetails}>
       <section className="employee-assignment-details-panel" role="dialog" aria-modal="true" aria-labelledby="assignment-details-title" onClick={(event) => event.stopPropagation()}>
         <div className="employee-overlay-heading"><div><p className="employee-eyebrow">Assignment details</p><h2 id="assignment-details-title">{selectedAssignment.name || `Assignment ${selectedAssignment.id}`}</h2></div><button onClick={closeAssignmentDetails} aria-label="Close assignment details">×</button></div>
@@ -281,8 +268,7 @@ export default function EmployeeOverview() {
           <div><dt>Location</dt><dd>{selectedAssignment.address || "No location provided"}</dd></div>
           <div><dt>Estimated time</dt><dd>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "Not provided"}</dd></div>
         </dl>
-        <section className="employee-detail-section"><h3>Notes</h3><p>{notes || "No permitted notes have been added for this assignment."}</p></section>
-        <section className="employee-detail-section"><h3>Resources</h3>{resources.length === 0 ? <p>No required, recommended, or informational resources are available for this assignment.</p> : <ul>{resources.map((resource) => <li key={resource.id ?? resource.productNumber ?? resource.name}>{resource.name || resource.productNumber || `Resource ${resource.id}`}</li>)}</ul>}</section>
+        <section className="employee-detail-section"><h3>Operational visibility</h3><p>This category schedule view only includes coordination details permitted by the backend.</p></section>
       </section>
     </div>
   }

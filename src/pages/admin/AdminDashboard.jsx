@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { AlignLeft, Bell, Calendar, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, Users, X } from "lucide-react"
+import { AlignLeft, Bell, Calendar, Clock, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, Users, X } from "lucide-react"
 import { useNavigate } from "react-router"
-import { activateAssignment, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getRolesByTenant, getStoredUser, getUsersByTenant, logout, toggleUserActivation, updateAssignment, updateProject, updateUser, updateUserCustomRoles } from "../../services/apiReader.js"
+import { activateAssignment, correctAssignmentAttendance, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getRolesByTenant, getStoredUser, getUsersByTenant, logout, previewAssignmentOverlaps, toggleUserActivation, updateAssignment, updateProject, updateUser, updateUserCustomRoles } from "../../services/apiReader.js"
 import Brand from "../../components/PageUI/Brand.jsx"
 import styles from "./AdminDashboard.module.css"
 
@@ -30,8 +30,8 @@ const customColorFallbacks = {
 }
 
 const emptyEmployeeForm = { name: "", email: "", phone: "", roles: ["Kitchen"], accessLevel: "Employee" }
-const emptyAssignmentForm = { name: "", address: "", estimatedMinutes: "", cost: "", assignedEmployeeId: "", startTime: "", isActive: true, productIds: [] }
-const emptyUserForm = { name: "", email: "", phoneNumber: "", role: "USER", customRoleIds: "" }
+const emptyAssignmentForm = { name: "", address: "", estimatedMinutes: "", cost: "", assignedEmployeeId: "", startTime: "", estimatedEndTime: "", overrideReason: "", isActive: true, productIds: [] }
+const emptyUserForm = { name: "", email: "", phoneNumber: "", primaryCategory: "", role: "USER", customRoleIds: "" }
 const emptyProjectForm = { name: "", description: "", status: "DRAFT", assignmentIds: [], customerId: "" }
 const emptyCustomerForm = { name: "", email: "", address: "", postalCode: "", city: "", country: "Denmark", currency: "DKK", customerGroupNumber: "1", paymentTermsNumber: "1", vatZoneNumber: "1" }
 const emptyProductForm = { productNumber: "", name: "", description: "", salesPrice: "", costPrice: "", recommendedPrice: "", barCode: "", productGroupNumber: "1", unitNumber: "", barred: false }
@@ -82,6 +82,7 @@ export default function AdminDashboard() {
   const [editingAssignmentId, setEditingAssignmentId] = useState(null)
   const [assignmentForm, setAssignmentForm] = useState(emptyAssignmentForm)
   const [assignmentFormError, setAssignmentFormError] = useState("")
+  const [assignmentOverlapConflicts, setAssignmentOverlapConflicts] = useState([])
   const [showUserModal, setShowUserModal] = useState(false)
   const [userModalMode, setUserModalMode] = useState("create")
   const [editingUser, setEditingUser] = useState(null)
@@ -216,7 +217,14 @@ export default function AdminDashboard() {
     const currentDate = assignmentDate(item.assignment)
     const nextDate = new Date(day)
     nextDate.setHours(currentDate?.getHours() ?? 9, currentDate?.getMinutes() ?? 0, 0, 0)
-    runAction("Assignment moved on the calendar.", () => updateAssignment(item.assignment.id, assignmentRequestBody({ ...item.assignment, startTime: formatLocalDateTime(nextDate), date: undefined, estimatedEndTime: undefined })))
+    const currentEnd = item.assignment.estimatedEndTime ? new Date(item.assignment.estimatedEndTime) : null
+    const currentStart = currentDate
+    let nextEndTime = item.assignment.estimatedEndTime
+    if (currentStart && currentEnd && !Number.isNaN(currentEnd.getTime())) {
+      const nextEnd = new Date(nextDate.getTime() + (currentEnd.getTime() - currentStart.getTime()))
+      nextEndTime = formatLocalDateTime(nextEnd)
+    }
+    runAction("Assignment moved on the calendar.", () => updateAssignment(item.assignment.id, assignmentRequestBody({ ...item.assignment, startTime: formatLocalDateTime(nextDate), estimatedEndTime: nextEndTime, date: undefined })))
     setSelectedScheduleItem({ ...item, assignment: { ...item.assignment, startTime: formatLocalDateTime(nextDate) } })
     setDraggedScheduleItem(null)
   }
@@ -299,7 +307,7 @@ export default function AdminDashboard() {
   function updateUserAction(employee) {
     setUserModalMode("edit")
     setEditingUser(employee)
-    setUserForm({ name: employee.name || "", email: employee.email || "", phoneNumber: employee.phoneNumber || "", role: employee.roles?.[0] || "USER", customRoleIds: employee.customRoles?.map((role) => role.id).join(",") || "" })
+    setUserForm({ name: employee.name || "", email: employee.email || "", phoneNumber: employee.phoneNumber || "", primaryCategory: employee.primaryCategory || "", role: employee.roles?.[0] || "USER", customRoleIds: employee.customRoles?.map((role) => role.id).join(",") || "" })
     setUserFormError("")
     setShowUserModal(true)
   }
@@ -313,6 +321,7 @@ export default function AdminDashboard() {
     const name = userForm.name.trim()
     const email = userForm.email.trim()
     const phoneNumber = userForm.phoneNumber.trim()
+    const primaryCategory = userForm.primaryCategory.trim() || null
     const role = userForm.role.trim().toUpperCase() || "USER"
     const customRoleIds = parseNumberList(userForm.customRoleIds)
     if (!name || !email) {
@@ -327,10 +336,10 @@ export default function AdminDashboard() {
     runAction(successMessage, async () => {
       let actionMessage = successMessage
       if (userModalMode === "create") {
-        const result = await createUser({ name, email, roles: [role], customRoleIds })
+        const result = await createUser({ name, email, roles: [role], primaryCategory, customRoleIds })
         actionMessage = result?.temporaryPassword ? `User created. Temporary password for ${result.user?.email || email}: ${result.temporaryPassword}` : "User created."
       } else {
-        await updateUser(editingUser.id, { ...editingUser, name, email, phoneNumber })
+        await updateUser(editingUser.id, { ...editingUser, name, email, phoneNumber, primaryCategory })
       }
       setShowUserModal(false)
       setUserForm(emptyUserForm)
@@ -375,15 +384,22 @@ export default function AdminDashboard() {
     setEditingAssignmentId(null)
     setAssignmentForm({ ...emptyAssignmentForm, startTime: formatLocalDateTime(new Date()).slice(0, 16) })
     setAssignmentFormError("")
+    setAssignmentOverlapConflicts([])
     setShowAssignmentModal(true)
   }
 
   function updateAssignmentForm(event) {
     const { name, value, type, checked } = event.target
+    setAssignmentFormError("")
     setAssignmentForm((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }))
   }
 
-  function submitAssignmentForm(event) {
+  function overlapMessage(conflicts) {
+    if (!conflicts.length) return ""
+    return conflicts.map((conflict) => `${conflict.assignmentName || `Assignment ${conflict.assignmentId}`} (${conflict.startTime?.slice(0, 16) || "unknown"} - ${conflict.estimatedEndTime?.slice(0, 16) || "unknown"})`).join(", ")
+  }
+
+  async function submitAssignmentForm(event) {
     event.preventDefault()
     const payload = assignmentRequestBody({
       name: assignmentForm.name.trim(),
@@ -393,6 +409,8 @@ export default function AdminDashboard() {
       assignedEmployeeId: assignmentForm.assignedEmployeeId ? Number(assignmentForm.assignedEmployeeId) : null,
       productIds: assignmentForm.productIds,
       startTime: normalizeDateTimeInput(assignmentForm.startTime),
+      estimatedEndTime: normalizeDateTimeInput(assignmentForm.estimatedEndTime),
+      overrideReason: assignmentForm.overrideReason.trim() || null,
       isActive: assignmentForm.isActive,
     })
     if (!payload.name) {
@@ -411,6 +429,25 @@ export default function AdminDashboard() {
       setAssignmentFormError("Cost cannot be negative.")
       return
     }
+    if (payload.startTime && payload.estimatedEndTime && new Date(payload.estimatedEndTime) <= new Date(payload.startTime)) {
+      setAssignmentFormError("End time must be later than start time.")
+      return
+    }
+    if (payload.assignedEmployeeId && payload.startTime && payload.estimatedEndTime) {
+      try {
+        const conflicts = await previewAssignmentOverlaps(payload, assignmentModalMode === "edit" ? editingAssignmentId : undefined)
+        setAssignmentOverlapConflicts(conflicts)
+        if (conflicts.length > 0 && !payload.overrideReason) {
+          setAssignmentFormError(`Overlaps with ${overlapMessage(conflicts)}. Add an override reason to save anyway.`)
+          return
+        }
+      } catch (error) {
+        setAssignmentFormError(error.message || "Could not check assignment overlaps.")
+        return
+      }
+    } else {
+      setAssignmentOverlapConflicts([])
+    }
     const successMessage = assignmentModalMode === "create" ? "Assignment created." : "Assignment updated."
     runAction(successMessage, async () => {
       try {
@@ -418,6 +455,7 @@ export default function AdminDashboard() {
         else await updateAssignment(editingAssignmentId, payload)
         setShowAssignmentModal(false)
         setAssignmentForm(emptyAssignmentForm)
+        setAssignmentOverlapConflicts([])
         setEditingAssignmentId(null)
       } catch (error) {
         setAssignmentFormError(error.message || `Could not ${assignmentModalMode} assignment.`)
@@ -429,9 +467,24 @@ export default function AdminDashboard() {
   function updateAssignmentAction(assignment) {
     setAssignmentModalMode("edit")
     setEditingAssignmentId(assignment.id)
-    setAssignmentForm({ name: assignment.name || "", address: assignment.address || "", estimatedMinutes: assignment.estimatedMinutes ?? "", cost: assignment.cost ?? "", assignedEmployeeId: assignment.assignedEmployeeId ?? "", startTime: (assignment.startTime || assignment.date) ? (assignment.startTime || assignment.date).slice(0, 16) : "", isActive: assignment.isActive !== false, productIds: assignment.productIds || assignment.products?.map((product) => product.id).filter(Boolean) || [] })
+    setAssignmentForm({ name: assignment.name || "", address: assignment.address || "", estimatedMinutes: assignment.estimatedMinutes ?? "", cost: assignment.cost ?? "", assignedEmployeeId: assignment.assignedEmployeeId ?? "", startTime: (assignment.startTime || assignment.date) ? (assignment.startTime || assignment.date).slice(0, 16) : "", estimatedEndTime: assignment.estimatedEndTime ? assignment.estimatedEndTime.slice(0, 16) : "", overrideReason: "", isActive: assignment.isActive !== false, productIds: assignment.productIds || assignment.products?.map((product) => product.id).filter(Boolean) || [] })
     setAssignmentFormError("")
+    setAssignmentOverlapConflicts([])
     setShowAssignmentModal(true)
+  }
+
+  function correctAttendanceAction(assignment) {
+    const checkInAt = window.prompt("Corrected check-in time as ISO instant, blank to keep current", assignment.checkInAt || "")
+    if (checkInAt === null) return
+    const checkOutAt = window.prompt("Corrected check-out time as ISO instant, blank to keep current", assignment.checkOutAt || "")
+    if (checkOutAt === null) return
+    const reason = window.prompt("Correction reason")?.trim()
+    if (!reason) {
+      setNotice("Attendance correction reason is required.")
+      return
+    }
+    const correction = assignmentRequestBody({ checkInAt: checkInAt.trim() || null, checkOutAt: checkOutAt.trim() || null, reason })
+    runAction("Attendance corrected.", () => correctAssignmentAttendance(assignment.id, correction))
   }
 
   function toggleAssignmentAction(assignment) {
@@ -602,7 +655,7 @@ export default function AdminDashboard() {
       return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Quick actions</p><h2>Schedule Controls</h2><p>Create work, group it into projects, or select an event on the calendar to edit it.</p></div><section><h3>Create</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={createAssignmentAction}><Plus size={18} /><strong>New assignment</strong><span>Schedule work with start time, employee, cost, and duration.</span></button><button className="admin-quick-action-card" onClick={createProjectAction}><FileText size={18} /><strong>New project</strong><span>Group assignment IDs and track project status.</span></button></div></section><section><h3>Calendar selection</h3><div className="admin-selected-empty"><Search size={22} /><p>Select an assignment on the calendar to edit, deactivate, delete, or adjust its project membership.</p></div></section></aside>
     }
 
-    return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Selected work</p><h2>{selectedProject?.name || "No project"}</h2><p>{selectedProject ? `${selectedProject.status || "DRAFT"} · ` : "Standalone · "}Assignment #{selectedAssignment.id}</p></div><section><h3>Assignment Info</h3><div className="admin-selected-empty"><strong>{selectedAssignment.name}</strong><p>{selectedAssignment.startTime ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedAssignment.startTime)) : "No scheduled start"}</p><p>{selectedAssignment.estimatedEndTime ? `Ends ${new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(new Date(selectedAssignment.estimatedEndTime))}` : "No estimated end"}</p><p>{selectedAssignment.address || "No address"}</p><p>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "No time estimate"} · {selectedAssignment.cost ?? "No cost"}</p><p>{selectedAssignment.assignedEmployeeId ? `Assigned user ${selectedAssignment.assignedEmployeeId}` : "No assigned user"}</p></div></section><section><h3>Actions</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={() => updateAssignmentAction(selectedAssignment)}><Calendar size={18} /><strong>Edit assignment</strong><span>Change schedule, employee, address, cost, or duration.</span></button><button className="admin-quick-action-card" onClick={() => toggleAssignmentAction(selectedAssignment)}><ShieldCheck size={18} /><strong>{selectedAssignment.isActive === false ? "Activate" : "Deactivate"}</strong><span>{selectedAssignment.isActive === false ? "Make this assignment selectable again." : "Keep history but hide it from active work."}</span></button><button className="admin-quick-action-card" onClick={() => deleteAssignmentAction(selectedAssignment)}><X size={18} /><strong>Delete</strong><span>Only succeeds if the backend says it is not in use.</span></button>{selectedProject && <button className="admin-quick-action-card" onClick={() => updateProjectAction(selectedProject)}><FileText size={18} /><strong>Edit project</strong><span>Adjust status or assignment IDs.</span></button>}</div></section></aside>
+    return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Selected work</p><h2>{selectedProject?.name || "No project"}</h2><p>{selectedProject ? `${selectedProject.status || "DRAFT"} · ` : "Standalone · "}Assignment #{selectedAssignment.id}</p></div><section><h3>Assignment Info</h3><div className="admin-selected-empty"><strong>{selectedAssignment.name}</strong><p>{selectedAssignment.startTime ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedAssignment.startTime)) : "No scheduled start"}</p><p>{selectedAssignment.estimatedEndTime ? `Ends ${new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(new Date(selectedAssignment.estimatedEndTime))}` : "No estimated end"}</p><p>{selectedAssignment.address || "No address"}</p><p>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "No time estimate"} · {selectedAssignment.cost ?? "No cost"}</p><p>{selectedAssignment.assignedEmployeeId ? `Assigned user ${selectedAssignment.assignedEmployeeId}` : "No assigned user"}</p></div></section><section><h3>Actions</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={() => updateAssignmentAction(selectedAssignment)}><Calendar size={18} /><strong>Edit assignment</strong><span>Change schedule, employee, address, cost, or duration.</span></button><button className="admin-quick-action-card" onClick={() => correctAttendanceAction(selectedAssignment)}><Clock size={18} /><strong>Correct attendance</strong><span>Record a check-in or check-out correction with a reason.</span></button><button className="admin-quick-action-card" onClick={() => toggleAssignmentAction(selectedAssignment)}><ShieldCheck size={18} /><strong>{selectedAssignment.isActive === false ? "Activate" : "Deactivate"}</strong><span>{selectedAssignment.isActive === false ? "Make this assignment selectable again." : "Keep history but hide it from active work."}</span></button><button className="admin-quick-action-card" onClick={() => deleteAssignmentAction(selectedAssignment)}><X size={18} /><strong>Delete</strong><span>Only succeeds if the backend says it is not in use.</span></button>{selectedProject && <button className="admin-quick-action-card" onClick={() => updateProjectAction(selectedProject)}><FileText size={18} /><strong>Edit project</strong><span>Adjust status or assignment IDs.</span></button>}</div></section></aside>
   }
 
   function renderAdminHub() {
@@ -726,6 +779,7 @@ export default function AdminDashboard() {
       <form className="admin-employee-form" onSubmit={submitUserForm}>
         <label><span>Name</span><input name="name" value={userForm.name} onChange={updateUserForm} placeholder="Anna Jensen" autoFocus required /></label>
         <label><span>Email</span><input name="email" type="email" value={userForm.email} onChange={updateUserForm} placeholder="anna@example.com" required /></label>
+        <label><span>Primary category</span><input name="primaryCategory" value={userForm.primaryCategory} onChange={updateUserForm} placeholder="Kitchen" /></label>
         {userModalMode === "edit" && <label><span>Phone number</span><input name="phoneNumber" type="tel" value={userForm.phoneNumber} onChange={updateUserForm} placeholder="+45 12 34 56 78" /></label>}
         {userModalMode === "create" && <><label><span>System role</span><select name="role" value={userForm.role} onChange={updateUserForm}><option value="USER">USER</option><option value="ADMIN">ADMIN</option></select></label><label><span>Company role IDs</span><input name="customRoleIds" value={userForm.customRoleIds} onChange={updateUserForm} placeholder="1,2,3" /></label></>}
         {userFormError && <span className="admin-form-error" role="alert">{userFormError}</span>}
@@ -764,7 +818,9 @@ export default function AdminDashboard() {
           <label><span>Assigned employee</span><select name="assignedEmployeeId" value={assignmentForm.assignedEmployeeId} onChange={updateAssignmentForm}><option value="">Unassigned</option>{backendEmployees.filter((employee) => employee.isActive !== false).map((employee) => <option key={employee.id} value={employee.id}>{employee.name || employee.email}</option>)}</select></label>
           <label className="admin-assignment-active"><input name="isActive" type="checkbox" checked={assignmentForm.isActive} onChange={updateAssignmentForm} /><span>Active assignment</span></label>
         </div>
-        <section className="admin-assignment-date-card"><div><Calendar size={20} /><div><h3>Start time</h3><p>This places the assignment in the overview calendar. End time is estimated by the backend.</p></div></div><input name="startTime" type="datetime-local" value={assignmentForm.startTime} onChange={updateAssignmentForm} /></section>
+        <section className="admin-assignment-date-card"><div><Calendar size={20} /><div><h3>Schedule window</h3><p>Overlapping employee assignments require an explicit override reason.</p></div></div><div className="admin-assignment-time-fields"><input name="startTime" type="datetime-local" value={assignmentForm.startTime} onChange={updateAssignmentForm} aria-label="Start time" /><input name="estimatedEndTime" type="datetime-local" value={assignmentForm.estimatedEndTime} onChange={updateAssignmentForm} aria-label="Estimated end time" /></div></section>
+        {assignmentOverlapConflicts.length > 0 && <section className="admin-overlap-warning" role="alert"><strong>Overlap warning</strong><p>{overlapMessage(assignmentOverlapConflicts)}</p></section>}
+        <label className="admin-assignment-override"><span>Override reason</span><textarea name="overrideReason" value={assignmentForm.overrideReason} onChange={updateAssignmentForm} placeholder="Required when saving an overlapping assignment." rows={3} /></label>
         <section className="admin-project-assignment-picker" aria-labelledby="assignment-products-title"><div><h3 id="assignment-products-title">Products</h3><p>Select tenant products to link to this assignment.</p></div>{backendProducts.length === 0 ? <div className="admin-assignment-empty">No products are available for this tenant yet.</div> : <div className="admin-project-assignment-list">{backendProducts.map((product) => { const selected = assignmentForm.productIds.includes(product.id); return <label className={`admin-project-assignment-option${selected ? " is-selected" : ""}`} key={product.id}><input type="checkbox" checked={selected} onChange={() => toggleAssignmentProduct(product.id)} /><span><strong>{product.productNumber || `Product ${product.id}`} · {product.name || "Unnamed product"}</strong><small>{product.salesPrice != null ? `Sales price ${product.salesPrice}` : "No sales price"} · {product.productGroupName || product.productGroupNumber || "No product group"}</small></span></label> })}</div>}</section>
         {assignmentFormError && <span className="admin-form-error" role="alert">{assignmentFormError}</span>}
         <div className="admin-modal-actions"><button type="button" onClick={() => setShowAssignmentModal(false)}>Cancel</button><button className="admin-control-primary" type="submit"><Plus size={15} /> {assignmentModalMode === "create" ? "Create assignment" : "Save assignment"}</button></div>
