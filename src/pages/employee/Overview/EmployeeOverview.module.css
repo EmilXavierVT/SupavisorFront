@@ -129,6 +129,119 @@
   gap: 10px;
 }
 
+.shell :global(.employee-calendar-meta) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--page-subtle);
+  font-size: 12px;
+}
+
+.shell :global(.employee-calendar-grid) {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(116px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.shell :global(.employee-calendar-day) {
+  display: flex;
+  min-height: 284px;
+  min-width: 116px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--page-border);
+  border-radius: 10px;
+  background: var(--page-card);
+}
+
+.shell :global(.employee-calendar-day header) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 3px 8px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--page-border);
+}
+
+.shell :global(.employee-calendar-day header span),
+.shell :global(.employee-calendar-day header small) {
+  color: var(--page-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.shell :global(.employee-calendar-day header strong) {
+  grid-row: span 2;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.shell :global(.employee-calendar-day > p) {
+  margin: auto;
+  color: var(--page-subtle);
+  font-size: 12px;
+  text-align: center;
+}
+
+.shell :global(.employee-calendar-day > div) {
+  display: grid;
+  gap: 8px;
+}
+
+.shell :global(.employee-calendar-event) {
+  display: flex;
+  width: 100%;
+  min-height: 82px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--page-border);
+  border-radius: 9px;
+  color: var(--page-foreground);
+  background: var(--page-background);
+  text-align: left;
+}
+
+.shell :global(.employee-calendar-event:hover) {
+  border-color: var(--page-primary);
+}
+
+.shell :global(.employee-calendar-event time) {
+  color: var(--page-primary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.shell :global(.employee-calendar-event span) {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.shell :global(.employee-calendar-event small) {
+  overflow-wrap: anywhere;
+  color: var(--page-subtle);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.shell :global(.employee-calendar-extra) {
+  margin-top: 18px;
+}
+
+.shell :global(.employee-calendar-extra h3) {
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
 .shell :global(.employee-assignment-card) {
   display: grid;
   width: 100%;
@@ -409,6 +522,12 @@
 
   .shell :global(.employee-assignment-card) {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .shell :global(.employee-calendar-grid) {
+    grid-template-columns: repeat(7, minmax(168px, 1fr));
+    margin-inline: -16px;
+    padding-inline: 16px;
   }
 
   .shell :global(.employee-assignment-card em) {
