@@ -1,6 +1,6 @@
 import { after, beforeEach, test } from "node:test"
 import assert from "node:assert/strict"
-import { fetchFromServer, getStoredUser, login, logout } from "../src/services/apiReader.js"
+import { fetchFromServer, getAssignment, getStoredUser, login, logout } from "../src/services/apiReader.js"
 
 const originalFetch = globalThis.fetch
 const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage")
@@ -49,6 +49,19 @@ test("refresh tokens are saved before JSON is parsed", async () => {
   values.set("jwtToken", "old")
   await fetchFromServer("/user/7")
   assert.equal(values.get("jwtToken"), "refreshed")
+})
+
+test("getAssignment reads an assignment by encoded id", async () => {
+  values.set("jwtToken", "jwt")
+  let request
+  globalThis.fetch = async (url, options) => {
+    request = { url, options }
+    return new Response(JSON.stringify({ id: "a/b", name: "Kitchen prep" }), { headers: { "content-type": "application/json" } })
+  }
+  const assignment = await getAssignment("a/b")
+  assert.equal(request.url, "https://supaapi.project-ice.dk/api/assignment/a%2Fb")
+  assert.equal(request.options.headers.Authorization, "Bearer jwt")
+  assert.deepEqual(assignment, { id: "a/b", name: "Kitchen prep" })
 })
 
 test("logout clears only the session keys", () => {
