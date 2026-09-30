@@ -142,6 +142,14 @@ export function deleteAssignment(id) {
   return fetchFromServer(`/assignment/${encodeURIComponent(id)}`, { method: "DELETE" })
 }
 
+export function setAssignmentResponsible(id, assignedEmployeeId) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}/responsible`, { method: "PUT", body: { assignedEmployeeId } })
+}
+
+export function clearAssignmentResponsible(id) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}/responsible`, { method: "DELETE" })
+}
+
 export function getProjects(options = {}) {
   return fetchFromServer("/project/all", options)
 }

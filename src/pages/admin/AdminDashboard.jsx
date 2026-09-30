@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { AlignLeft, Bell, Calendar, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, Users, X } from "lucide-react"
 import { useNavigate } from "react-router"
-import { activateAssignment, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getRolesByTenant, getStoredUser, getUsersByTenant, logout, toggleUserActivation, updateAssignment, updateProject, updateUser, updateUserCustomRoles } from "../../services/apiReader.js"
+import { activateAssignment, clearAssignmentResponsible, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getRolesByTenant, getStoredUser, getUsersByTenant, logout, setAssignmentResponsible, toggleUserActivation, updateAssignment, updateProject, updateUser, updateUserCustomRoles } from "../../services/apiReader.js"
 import Brand from "../../components/PageUI/Brand.jsx"
 import styles from "./AdminDashboard.module.css"
 
@@ -82,6 +82,7 @@ export default function AdminDashboard() {
   const [editingAssignmentId, setEditingAssignmentId] = useState(null)
   const [assignmentForm, setAssignmentForm] = useState(emptyAssignmentForm)
   const [assignmentFormError, setAssignmentFormError] = useState("")
+  const [responsiblePending, setResponsiblePending] = useState(null)
   const [showUserModal, setShowUserModal] = useState(false)
   const [userModalMode, setUserModalMode] = useState("create")
   const [editingUser, setEditingUser] = useState(null)
@@ -173,6 +174,8 @@ export default function AdminDashboard() {
 
   const selectedProject = selectedScheduleItem?.project
   const selectedAssignment = selectedScheduleItem?.assignment
+  const selectedResponsible = responsibleOf(selectedAssignment)
+  const editingResponsible = responsibleOf(backendAssignments.find((assignment) => assignment.id === editingAssignmentId))
 
   function chooseScreeningTab(tab) { setScreeningTab(tab) }
   function chooseScreeningFilter(filter) { setScreeningFilter(filter) }
@@ -434,6 +437,47 @@ export default function AdminDashboard() {
     setShowAssignmentModal(true)
   }
 
+  function responsibleOf(assignment) {
+    if (!assignment?.assignedEmployeeId) return null
+    const employee = backendEmployees.find((item) => item.id === assignment.assignedEmployeeId)
+    return {
+      id: assignment.assignedEmployeeId,
+      name: assignment.assignedEmployeeName || employee?.name || employee?.email || `User ${assignment.assignedEmployeeId}`,
+      deactivated: employee?.isActive === false,
+      selectable: activeEmployees.some((item) => item.id === assignment.assignedEmployeeId),
+    }
+  }
+
+  function responsibleLabel(responsible) {
+    return responsible.deactivated ? `${responsible.name} (deactivated)` : responsible.name
+  }
+
+  async function saveResponsible(assignment, value, successMessage, request) {
+    setResponsiblePending({ assignmentId: assignment.id, value })
+    try {
+      const updated = await request()
+      if (updated?.id === assignment.id) {
+        setBackendData((current) => ({ ...current, assignments: current.assignments.map((item) => item.id === assignment.id ? updated : item) }))
+        setSelectedScheduleItem((current) => current?.assignment?.id === assignment.id ? { ...current, assignment: updated } : current)
+      } else {
+        setReloadKey((key) => key + 1)
+      }
+      setNotice(successMessage)
+    } catch (error) {
+      setNotice(error.message || "Could not update the responsible person.")
+      if (error.status) setReloadKey((key) => key + 1)
+    } finally {
+      setResponsiblePending(null)
+    }
+  }
+
+  function changeResponsibleAction(assignment, value) {
+    const current = responsibleOf(assignment)
+    if (current?.deactivated && !window.confirm(`${current.name} is deactivated. Once replaced or removed, ${current.name} cannot be made responsible again. Continue?`)) return
+    if (value === "") saveResponsible(assignment, value, "Responsible person removed.", () => clearAssignmentResponsible(assignment.id))
+    else saveResponsible(assignment, value, "Responsible person updated.", () => setAssignmentResponsible(assignment.id, Number(value)))
+  }
+
   function toggleAssignmentAction(assignment) {
     const active = assignment.isActive !== false
     runAction(active ? "Assignment deactivated." : "Assignment activated.", () => active ? deactivateAssignment(assignment.id) : activateAssignment(assignment.id))
@@ -597,12 +641,29 @@ export default function AdminDashboard() {
     </section>
   }
 
+  function renderResponsiblePicker(assignment) {
+    const responsible = responsibleOf(assignment)
+    const pending = responsiblePending?.assignmentId === assignment.id ? responsiblePending : null
+    return <div className="admin-assignment-responsible">
+      <label>
+        <span>Responsible person</span>
+        <select aria-label={`Responsible person for ${assignment.name}`} value={pending ? pending.value : responsible?.id ?? ""} disabled={Boolean(pending)} onChange={(event) => changeResponsibleAction(assignment, event.target.value)}>
+          <option value="">No responsible person</option>
+          {responsible && !responsible.selectable && <option value={responsible.id}>{responsibleLabel(responsible)}</option>}
+          {activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name || employee.email}</option>)}
+        </select>
+      </label>
+      <button type="button" aria-label={`Remove responsible person from ${assignment.name}`} disabled={!responsible || Boolean(pending)} onClick={() => changeResponsibleAction(assignment, "")}>Remove</button>
+      {responsible?.deactivated && <p className="admin-assignment-responsible-note">{responsible.name} is deactivated. Replacing or removing them is one-way: they cannot be selected again.</p>}
+    </div>
+  }
+
   function renderScheduleControls() {
     if (!selectedAssignment) {
       return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Quick actions</p><h2>Schedule Controls</h2><p>Create work, group it into projects, or select an event on the calendar to edit it.</p></div><section><h3>Create</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={createAssignmentAction}><Plus size={18} /><strong>New assignment</strong><span>Schedule work with start time, employee, cost, and duration.</span></button><button className="admin-quick-action-card" onClick={createProjectAction}><FileText size={18} /><strong>New project</strong><span>Group assignment IDs and track project status.</span></button></div></section><section><h3>Calendar selection</h3><div className="admin-selected-empty"><Search size={22} /><p>Select an assignment on the calendar to edit, deactivate, delete, or adjust its project membership.</p></div></section></aside>
     }
 
-    return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Selected work</p><h2>{selectedProject?.name || "No project"}</h2><p>{selectedProject ? `${selectedProject.status || "DRAFT"} · ` : "Standalone · "}Assignment #{selectedAssignment.id}</p></div><section><h3>Assignment Info</h3><div className="admin-selected-empty"><strong>{selectedAssignment.name}</strong><p>{selectedAssignment.startTime ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedAssignment.startTime)) : "No scheduled start"}</p><p>{selectedAssignment.estimatedEndTime ? `Ends ${new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(new Date(selectedAssignment.estimatedEndTime))}` : "No estimated end"}</p><p>{selectedAssignment.address || "No address"}</p><p>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "No time estimate"} · {selectedAssignment.cost ?? "No cost"}</p><p>{selectedAssignment.assignedEmployeeId ? `Assigned user ${selectedAssignment.assignedEmployeeId}` : "No assigned user"}</p></div></section><section><h3>Actions</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={() => updateAssignmentAction(selectedAssignment)}><Calendar size={18} /><strong>Edit assignment</strong><span>Change schedule, employee, address, cost, or duration.</span></button><button className="admin-quick-action-card" onClick={() => toggleAssignmentAction(selectedAssignment)}><ShieldCheck size={18} /><strong>{selectedAssignment.isActive === false ? "Activate" : "Deactivate"}</strong><span>{selectedAssignment.isActive === false ? "Make this assignment selectable again." : "Keep history but hide it from active work."}</span></button><button className="admin-quick-action-card" onClick={() => deleteAssignmentAction(selectedAssignment)}><X size={18} /><strong>Delete</strong><span>Only succeeds if the backend says it is not in use.</span></button>{selectedProject && <button className="admin-quick-action-card" onClick={() => updateProjectAction(selectedProject)}><FileText size={18} /><strong>Edit project</strong><span>Adjust status or assignment IDs.</span></button>}</div></section></aside>
+    return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Selected work</p><h2>{selectedProject?.name || "No project"}</h2><p>{selectedProject ? `${selectedProject.status || "DRAFT"} · ` : "Standalone · "}Assignment #{selectedAssignment.id}</p></div><section><h3>Assignment Info</h3><div className="admin-selected-empty"><strong>{selectedAssignment.name}</strong><p>{selectedAssignment.startTime ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedAssignment.startTime)) : "No scheduled start"}</p><p>{selectedAssignment.estimatedEndTime ? `Ends ${new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(new Date(selectedAssignment.estimatedEndTime))}` : "No estimated end"}</p><p>{selectedAssignment.address || "No address"}</p><p>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "No time estimate"} · {selectedAssignment.cost ?? "No cost"}</p><p>{selectedResponsible ? `Responsible: ${responsibleLabel(selectedResponsible)}` : "No responsible person"}</p></div></section><section><h3>Actions</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={() => updateAssignmentAction(selectedAssignment)}><Calendar size={18} /><strong>Edit assignment</strong><span>Change schedule, employee, address, cost, or duration.</span></button><button className="admin-quick-action-card" onClick={() => toggleAssignmentAction(selectedAssignment)}><ShieldCheck size={18} /><strong>{selectedAssignment.isActive === false ? "Activate" : "Deactivate"}</strong><span>{selectedAssignment.isActive === false ? "Make this assignment selectable again." : "Keep history but hide it from active work."}</span></button><button className="admin-quick-action-card" onClick={() => deleteAssignmentAction(selectedAssignment)}><X size={18} /><strong>Delete</strong><span>Only succeeds if the backend says it is not in use.</span></button>{selectedProject && <button className="admin-quick-action-card" onClick={() => updateProjectAction(selectedProject)}><FileText size={18} /><strong>Edit project</strong><span>Adjust status or assignment IDs.</span></button>}</div></section></aside>
   }
 
   function renderAdminHub() {
@@ -653,7 +714,7 @@ export default function AdminDashboard() {
 
     if (activePage === "Assignments") {
       const assignments = backendAssignments.filter((assignment) => matchesSearch(assignment.name, assignment.address, assignment.id, assignment.assignedEmployeeId))
-      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Assignments</h3><p>Create and manage assignment templates. Deactivate assignments that are in use.</p></div><button type="button" className="admin-control-primary" onClick={createAssignmentAction}><Plus size={15} /> Create assignment</button></div>{assignments.length === 0 ? <div className="admin-hub-empty"><Calendar size={24} /><p>No assignments match the current search.</p></div> : <div className="admin-assignment-list">{assignments.map((assignment) => <article className="admin-assignment-card" key={assignment.id}><strong>{assignment.name}</strong><small>{assignment.address || "No address"} · {assignment.estimatedMinutes ? `${assignment.estimatedMinutes} min` : "No estimate"} · {assignment.cost ?? "No cost"} · {(assignment.productIds?.length ?? assignment.products?.length ?? 0)} products</small><div className="admin-modal-actions"><button type="button" onClick={() => updateAssignmentAction(assignment)}>Edit</button><button type="button" onClick={() => toggleAssignmentAction(assignment)}>{assignment.isActive === false ? "Activate" : "Deactivate"}</button><button type="button" onClick={() => deleteAssignmentAction(assignment)}>Delete</button></div><em className={assignment.isActive === false ? "is-needed" : "is-staffed"}>{assignment.isActive === false ? "Inactive" : assignment.assignedEmployeeId ? `User ${assignment.assignedEmployeeId}` : "Active"}</em></article>)}</div>}</section>
+      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Assignments</h3><p>Create and manage assignment templates. Deactivate assignments that are in use.</p></div><button type="button" className="admin-control-primary" onClick={createAssignmentAction}><Plus size={15} /> Create assignment</button></div>{assignments.length === 0 ? <div className="admin-hub-empty"><Calendar size={24} /><p>No assignments match the current search.</p></div> : <div className="admin-assignment-list">{assignments.map((assignment) => <article className="admin-assignment-card" key={assignment.id}><strong>{assignment.name}</strong><small>{assignment.address || "No address"} · {assignment.estimatedMinutes ? `${assignment.estimatedMinutes} min` : "No estimate"} · {assignment.cost ?? "No cost"} · {(assignment.productIds?.length ?? assignment.products?.length ?? 0)} products</small>{renderResponsiblePicker(assignment)}<div className="admin-modal-actions"><button type="button" onClick={() => updateAssignmentAction(assignment)}>Edit</button><button type="button" onClick={() => toggleAssignmentAction(assignment)}>{assignment.isActive === false ? "Activate" : "Deactivate"}</button><button type="button" onClick={() => deleteAssignmentAction(assignment)}>Delete</button></div><em className={assignment.isActive === false ? "is-needed" : "is-staffed"}>{assignment.isActive === false ? "Inactive" : "Active"}</em></article>)}</div>}</section>
     }
 
     if (activePage === "Projects") {
@@ -761,7 +822,7 @@ export default function AdminDashboard() {
           <label><span>Address</span><input name="address" value={assignmentForm.address} onChange={updateAssignmentForm} placeholder="Main Street 1" /></label>
           <label><span>Estimated minutes</span><input name="estimatedMinutes" type="number" min="1" value={assignmentForm.estimatedMinutes} onChange={updateAssignmentForm} placeholder="90" /></label>
           <label><span>Cost</span><input name="cost" type="number" min="0" step="0.01" value={assignmentForm.cost} onChange={updateAssignmentForm} placeholder="1200.00" /></label>
-          <label><span>Assigned employee</span><select name="assignedEmployeeId" value={assignmentForm.assignedEmployeeId} onChange={updateAssignmentForm}><option value="">Unassigned</option>{backendEmployees.filter((employee) => employee.isActive !== false).map((employee) => <option key={employee.id} value={employee.id}>{employee.name || employee.email}</option>)}</select></label>
+          <label><span>Responsible person</span><select name="assignedEmployeeId" value={assignmentForm.assignedEmployeeId} onChange={updateAssignmentForm}><option value="">No responsible person</option>{editingResponsible && !editingResponsible.selectable && <option value={editingResponsible.id}>{responsibleLabel(editingResponsible)}</option>}{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name || employee.email}</option>)}</select>{editingResponsible?.deactivated && <small>{editingResponsible.name} is deactivated. Replacing them is one-way: they cannot be selected again.</small>}</label>
           <label className="admin-assignment-active"><input name="isActive" type="checkbox" checked={assignmentForm.isActive} onChange={updateAssignmentForm} /><span>Active assignment</span></label>
         </div>
         <section className="admin-assignment-date-card"><div><Calendar size={20} /><div><h3>Start time</h3><p>This places the assignment in the overview calendar. End time is estimated by the backend.</p></div></div><input name="startTime" type="datetime-local" value={assignmentForm.startTime} onChange={updateAssignmentForm} /></section>
