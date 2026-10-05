@@ -3,7 +3,7 @@ import { useNavigate } from "react-router"
 import Brand from "../../../components/PageUI/Brand.jsx"
 import Icon from "../../../components/PageUI/Icon.jsx"
 import useEmployeeProfile from "../../../hooks/useEmployeeProfile.js"
-import { getAssignment, getAssignments, logout } from "../../../services/apiReader.js"
+import { getAssignments, logout } from "../../../services/apiReader.js"
 import styles from "./EmployeeOverview.module.css"
 
 function storedContactInfo() {
@@ -15,6 +15,56 @@ function formatAssignmentDate(value, options = { dateStyle: "medium", timeStyle:
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "Not provided"
   return new Intl.DateTimeFormat("en-GB", options).format(date)
+}
+
+function assignmentStartDate(assignment) {
+  const date = assignment?.startTime ? new Date(assignment.startTime) : null
+  return date && !Number.isNaN(date.getTime()) ? date : null
+}
+
+function startOfLocalDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function addDays(date, days) {
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() + days)
+  return nextDate
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+}
+
+function localTimeZoneLabel() {
+  return new Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"
+}
+
+function buildUpcomingCalendar(assignments, anchorDate) {
+  const start = startOfLocalDay(anchorDate)
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(start, index)
+    return { date, key: dateKey(date), assignments: [] }
+  })
+  const daysByKey = new Map(days.map((day) => [day.key, day]))
+  const later = []
+  const unscheduled = []
+
+  assignments.forEach((assignment) => {
+    const startDate = assignmentStartDate(assignment)
+    if (!startDate) {
+      unscheduled.push(assignment)
+      return
+    }
+    if (startDate < start) return
+    const day = daysByKey.get(dateKey(startDate))
+    if (day) day.assignments.push(assignment)
+    else later.push(assignment)
+  })
+
+  days.forEach((day) => day.assignments.sort((a, b) => assignmentStartDate(a) - assignmentStartDate(b)))
+  later.sort((a, b) => assignmentStartDate(a) - assignmentStartDate(b))
+  return { days, later, unscheduled }
 }
 
 function assignmentStatus(assignment) {
@@ -43,7 +93,6 @@ export default function EmployeeOverview() {
   const [assignmentsState, setAssignmentsState] = useState({ items: [], loading: false, error: "" })
   const [assignmentLoadAttempt, setAssignmentLoadAttempt] = useState(0)
   const [selectedAssignment, setSelectedAssignment] = useState(null)
-  const [assignmentDetailsState, setAssignmentDetailsState] = useState({ loading: false, error: "" })
   const [contactInfo, setContactInfo] = useState(storedContactInfo)
   const [contactDraft, setContactDraft] = useState(storedContactInfo)
   const [customColors, setCustomColors] = useState(() => {
@@ -108,23 +157,11 @@ export default function EmployeeOverview() {
     setAssignmentsState((current) => ({ ...current, loading: true, error: "" }))
     setAssignmentLoadAttempt((value) => value + 1)
   }
-  async function openAssignmentDetails(assignment) {
+  function openAssignmentDetails(assignment) {
     setSelectedAssignment(assignment)
-    setAssignmentDetailsState({ loading: true, error: "" })
-    try {
-      const details = await getAssignment(assignment.id)
-      setSelectedAssignment(details)
-      setAssignmentDetailsState({ loading: false, error: "" })
-    } catch (error) {
-      setAssignmentDetailsState({
-        loading: false,
-        error: error.status === 403 ? "The server did not permit access to this assignment." : error.message || "Unable to load assignment details.",
-      })
-    }
   }
   function closeAssignmentDetails() {
     setSelectedAssignment(null)
-    setAssignmentDetailsState({ loading: false, error: "" })
   }
   function updateContactDraft(event) { setContactDraft((current) => ({ ...current, [event.target.name]: event.target.value })) }
   function saveContactInfo(event) {
@@ -147,14 +184,20 @@ export default function EmployeeOverview() {
 
   function renderSchedule() {
     const assignments = assignmentsState.items
+    const calendar = buildUpcomingCalendar(assignments, today)
+    const visibleCalendarCount = calendar.days.reduce((count, day) => count + day.assignments.length, 0)
     return <section className="employee-page-view employee-schedule-view" aria-labelledby="schedule-title">
       <div className="employee-view-heading"><div><p className="employee-eyebrow">Planning</p><h2 id="schedule-title">My Schedule</h2><p>Open an assignment to review the permitted details before work starts.</p></div><button className="employee-secondary-button" onClick={() => changeView("overview")}><Icon name="chevron-left" size={16} /> Overview</button></div>
       {assignmentsState.error && <div className="page-error employee-profile-error" role="alert"><span>{assignmentsState.error}</span><button onClick={retryAssignments}>Try again</button></div>}
-      <div className="employee-week-toolbar"><button aria-label="Previous week" onClick={() => unavailable("Week navigation")}><Icon name="chevron-left" /></button><strong>Assigned work</strong><button aria-label="Next week" onClick={() => unavailable("Week navigation")}><Icon name="chevron-right" /></button></div>
+      <div className="employee-week-toolbar"><button aria-label="Previous period" onClick={() => unavailable("Calendar navigation")}><Icon name="chevron-left" /></button><strong>Upcoming 7 days</strong><button aria-label="Next period" onClick={() => unavailable("Calendar navigation")}><Icon name="chevron-right" /></button></div>
       <div className="employee-schedule-grid">
         {assignmentsState.loading ? <div className="employee-schedule-empty" role="status"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>Loading assignments</h3><p>Fetching the work the server permits you to view.</p></div>
           : assignments.length === 0 ? <div className="employee-schedule-empty"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>No assignment details available</h3><p>Your assigned work will appear here when the backend returns permitted assignments for your account.</p><button className="employee-outline-button" onClick={retryAssignments}><Icon name="calendar" size={15} /> Check for updates</button></div>
-            : <div className="employee-assignment-list" aria-label="Permitted assignments">{assignments.map((assignment) => <button className="employee-assignment-card" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><span><strong>{assignment.name || `Assignment ${assignment.id}`}</strong><small>{formatAssignmentDate(assignment.startTime)} · {assignment.address || "No location provided"}</small></span><em>{assignmentStatus(assignment)}</em><Icon name="chevron-right" size={16} /></button>)}</div>}
+            : <>
+              <div className="employee-calendar-meta"><span>{visibleCalendarCount} assignment{visibleCalendarCount === 1 ? "" : "s"} in this window</span><span>Times shown in {localTimeZoneLabel()}</span></div>
+              <div className="employee-calendar-grid" aria-label="Upcoming assignment calendar">{calendar.days.map((day) => <section className="employee-calendar-day" key={day.key} aria-labelledby={`employee-calendar-day-${day.key}`}><header><span>{formatAssignmentDate(day.date, { weekday: "short" })}</span><strong id={`employee-calendar-day-${day.key}`}>{formatAssignmentDate(day.date, { day: "numeric" })}</strong><small>{formatAssignmentDate(day.date, { month: "short" })}</small></header>{day.assignments.length === 0 ? <p>No work</p> : <div>{day.assignments.map((assignment) => <button className="employee-calendar-event" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><time dateTime={assignment.startTime}>{formatAssignmentDate(assignment.startTime, { timeStyle: "short" })}</time><span>{assignment.name || `Assignment ${assignment.id}`}</span><small>{assignment.address || "No location provided"}</small></button>)}</div>}</section>)}</div>
+              {(calendar.later.length > 0 || calendar.unscheduled.length > 0) && <section className="employee-calendar-extra" aria-label="Additional assignments"><h3>More assigned work</h3><div className="employee-assignment-list">{[...calendar.later, ...calendar.unscheduled].map((assignment) => <button className="employee-assignment-card" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><span><strong>{assignment.name || `Assignment ${assignment.id}`}</strong><small>{formatAssignmentDate(assignment.startTime)} · {assignment.address || "No location provided"}</small></span><em>{assignmentStatus(assignment)}</em><Icon name="chevron-right" size={16} /></button>)}</div></section>}
+            </>}
       </div>
     </section>
   }
@@ -166,8 +209,6 @@ export default function EmployeeOverview() {
     return <div className="employee-overlay" role="presentation" onClick={closeAssignmentDetails}>
       <section className="employee-assignment-details-panel" role="dialog" aria-modal="true" aria-labelledby="assignment-details-title" onClick={(event) => event.stopPropagation()}>
         <div className="employee-overlay-heading"><div><p className="employee-eyebrow">Assignment details</p><h2 id="assignment-details-title">{selectedAssignment.name || `Assignment ${selectedAssignment.id}`}</h2></div><button onClick={closeAssignmentDetails} aria-label="Close assignment details">×</button></div>
-        {assignmentDetailsState.loading && <div className="employee-detail-status" role="status">Refreshing details from the server…</div>}
-        {assignmentDetailsState.error && <div className="employee-detail-error" role="alert">{assignmentDetailsState.error}</div>}
         <dl className="employee-detail-grid">
           <div><dt>Task</dt><dd>{selectedAssignment.name || "Not provided"}</dd></div>
           <div><dt>Status</dt><dd className="employee-detail-status-pill">{assignmentStatus(selectedAssignment)}</dd></div>
