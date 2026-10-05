@@ -250,7 +250,8 @@
 .shell :global(.admin-employee-form) { display: flex; flex-direction: column; gap: 16px; padding-top: 20px; }
 .shell :global(.admin-employee-form label) { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
 .shell :global(.admin-employee-form label > span) { color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-.shell :global(.admin-employee-form input), .shell :global(.admin-employee-form select) { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-bg); }
+.shell :global(.admin-employee-form input), .shell :global(.admin-employee-form select), .shell :global(.admin-employee-form textarea) { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-bg); }
+.shell :global(.admin-employee-form textarea) { min-height: 86px; resize: vertical; }
 .shell :global(.admin-form-row) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .shell :global(.admin-assignment-modal) { max-width: min(760px, calc(100vw - 32px)); }
 .shell :global(.admin-assignment-form-grid) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -258,6 +259,11 @@
 .shell :global(.admin-assignment-active input) { width: auto; min-height: auto; }
 .shell :global(.admin-assignment-date-card) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 280px); gap: 16px; align-items: center; margin-top: 4px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-bg); }
 .shell :global(.admin-assignment-date-card > div) { display: flex; align-items: center; gap: 12px; }
+.shell :global(.admin-assignment-time-fields) { display: grid; gap: 8px; }
+.shell :global(.admin-overlap-warning) { padding: 12px 14px; border: 1px solid #f59e0b; border-radius: 10px; color: #92400e; background: color-mix(in srgb, #f59e0b 12%, var(--admin-card)); }
+.shell :global(.admin-overlap-warning strong) { display: block; margin-bottom: 4px; font-size: 12px; }
+.shell :global(.admin-overlap-warning p) { color: inherit; font-size: 12px; }
+.shell :global(.admin-assignment-override) { margin-top: -4px; }
 .shell :global(.admin-assignment-date-card h3) { font-size: 15px; }
 .shell :global(.admin-assignment-date-card p) { margin-top: 3px; color: var(--admin-subtle); font-size: 12px; }
 .shell :global(.admin-project-assignment-picker) { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-bg); }

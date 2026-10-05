@@ -130,6 +130,11 @@ export function createAssignment(assignment) {
   return fetchFromServer("/assignment", { method: "POST", body: assignment })
 }
 
+export function previewAssignmentOverlaps(assignment, assignmentId) {
+  const query = assignmentId ? `?assignmentId=${encodeURIComponent(assignmentId)}` : ""
+  return fetchFromServer(`/assignment/overlaps${query}`, { method: "POST", body: assignment })
+}
+
 export function updateAssignment(id, assignment) {
   return fetchFromServer(`/assignment/${encodeURIComponent(id)}`, { method: "PUT", body: assignment })
 }
@@ -144,6 +149,14 @@ export function deactivateAssignment(id) {
 
 export function deleteAssignment(id) {
   return fetchFromServer(`/assignment/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
+export function correctAssignmentAttendance(id, correction) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}/attendance-correction`, { method: "PATCH", body: correction })
+}
+
+export function getAssignmentAttendanceHistory(id, options = {}) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}/attendance-history`, options)
 }
 
 export function getProjects(options = {}) {
