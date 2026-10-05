@@ -3,11 +3,33 @@ import { useNavigate } from "react-router"
 import Brand from "../../../components/PageUI/Brand.jsx"
 import Icon from "../../../components/PageUI/Icon.jsx"
 import useEmployeeProfile from "../../../hooks/useEmployeeProfile.js"
-import { logout } from "../../../services/apiReader.js"
+import { getAssignment, getAssignments, logout } from "../../../services/apiReader.js"
 import styles from "./EmployeeOverview.module.css"
 
 function storedContactInfo() {
   try { return JSON.parse(localStorage.getItem("employeeContactInfo")) || { email: "", phone: "" } } catch { return { email: "", phone: "" } }
+}
+
+function formatAssignmentDate(value, options = { dateStyle: "medium", timeStyle: "short" }) {
+  if (!value) return "Not provided"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Not provided"
+  return new Intl.DateTimeFormat("en-GB", options).format(date)
+}
+
+function assignmentStatus(assignment) {
+  return String(assignment?.state || (assignment?.isActive === false ? "inactive" : "planned")).replace(/_/g, " ").toLowerCase()
+}
+
+function assignmentResources(assignment) {
+  if (Array.isArray(assignment?.resources)) return assignment.resources
+  if (Array.isArray(assignment?.products)) return assignment.products
+  if (Array.isArray(assignment?.productIds)) return assignment.productIds.map((id) => ({ id, name: `Resource ${id}` }))
+  return []
+}
+
+function assignmentNotes(assignment) {
+  return assignment?.notes || assignment?.note || assignment?.description || assignment?.taskDescription || ""
 }
 
 export default function EmployeeOverview() {
@@ -18,6 +40,10 @@ export default function EmployeeOverview() {
   const [theme, setTheme] = useState(() => localStorage.getItem("employeeTheme") || "default")
   const [showNotifications, setShowNotifications] = useState(false)
   const [notificationsRead, setNotificationsRead] = useState(false)
+  const [assignmentsState, setAssignmentsState] = useState({ items: [], loading: false, error: "" })
+  const [assignmentLoadAttempt, setAssignmentLoadAttempt] = useState(0)
+  const [selectedAssignment, setSelectedAssignment] = useState(null)
+  const [assignmentDetailsState, setAssignmentDetailsState] = useState({ loading: false, error: "" })
   const [contactInfo, setContactInfo] = useState(storedContactInfo)
   const [contactDraft, setContactDraft] = useState(storedContactInfo)
   const [customColors, setCustomColors] = useState(() => {
@@ -37,6 +63,32 @@ export default function EmployeeOverview() {
     setContactDraft((current) => ({ email: current.email || user.email || "", phone: current.phone || user.phoneNumber || "" }))
   }, [user])
 
+  useEffect(() => {
+    if (!user?.id) return
+    const controller = new AbortController()
+    let active = true
+
+    async function loadAssignments() {
+      setAssignmentsState((current) => ({ ...current, loading: true, error: "" }))
+      try {
+        const data = await getAssignments({ activeOnly: true, signal: controller.signal })
+        const items = Array.isArray(data) ? data : []
+        const permittedItems = items
+          .sort((a, b) => new Date(a.startTime || 0) - new Date(b.startTime || 0))
+        if (active) setAssignmentsState({ items: permittedItems, loading: false, error: "" })
+      } catch (error) {
+        if (!active || error.name === "AbortError") return
+        const message = error.status === 401
+          ? "Your session has expired. Please sign in again."
+          : error.status === 403 ? "The server did not permit access to your assignments." : error.message || "Unable to load your assignments."
+        setAssignmentsState({ items: [], loading: false, error: message })
+      }
+    }
+
+    loadAssignments()
+    return () => { active = false; controller.abort() }
+  }, [user?.id, assignmentLoadAttempt])
+
   function signOut() { logout(); navigate("/auth/login", { replace: true }) }
   function changeView(view) { setNotice(""); setActiveView(view) }
   function chooseTheme(nextTheme) { setTheme(nextTheme); localStorage.setItem("employeeTheme", nextTheme) }
@@ -51,6 +103,28 @@ export default function EmployeeOverview() {
   function markAllNotificationsRead() {
     setNotificationsRead(true)
     setNotice("All notifications are marked as read.")
+  }
+  function retryAssignments() {
+    setAssignmentsState((current) => ({ ...current, loading: true, error: "" }))
+    setAssignmentLoadAttempt((value) => value + 1)
+  }
+  async function openAssignmentDetails(assignment) {
+    setSelectedAssignment(assignment)
+    setAssignmentDetailsState({ loading: true, error: "" })
+    try {
+      const details = await getAssignment(assignment.id)
+      setSelectedAssignment(details)
+      setAssignmentDetailsState({ loading: false, error: "" })
+    } catch (error) {
+      setAssignmentDetailsState({
+        loading: false,
+        error: error.status === 403 ? "The server did not permit access to this assignment." : error.message || "Unable to load assignment details.",
+      })
+    }
+  }
+  function closeAssignmentDetails() {
+    setSelectedAssignment(null)
+    setAssignmentDetailsState({ loading: false, error: "" })
   }
   function updateContactDraft(event) { setContactDraft((current) => ({ ...current, [event.target.name]: event.target.value })) }
   function saveContactInfo(event) {
@@ -72,11 +146,40 @@ export default function EmployeeOverview() {
   }
 
   function renderSchedule() {
+    const assignments = assignmentsState.items
     return <section className="employee-page-view employee-schedule-view" aria-labelledby="schedule-title">
-      <div className="employee-view-heading"><div><p className="employee-eyebrow">Planning</p><h2 id="schedule-title">My Schedule</h2><p>Review your upcoming work when schedule data is available.</p></div><button className="employee-secondary-button" onClick={() => changeView("overview")}><Icon name="chevron-left" size={16} /> Overview</button></div>
-      <div className="employee-week-toolbar"><button aria-label="Previous week" onClick={() => unavailable("Week navigation")}><Icon name="chevron-left" /></button><strong>This week</strong><button aria-label="Next week" onClick={() => unavailable("Week navigation")}><Icon name="chevron-right" /></button></div>
-      <div className="employee-schedule-grid"><div className="employee-schedule-empty"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>No schedule published</h3><p>Your schedule will appear here once your manager publishes shifts.</p><button className="employee-outline-button" onClick={() => unavailable("Schedule refresh")}><Icon name="calendar" size={15} /> Check for updates</button></div></div>
+      <div className="employee-view-heading"><div><p className="employee-eyebrow">Planning</p><h2 id="schedule-title">My Schedule</h2><p>Open an assignment to review the permitted details before work starts.</p></div><button className="employee-secondary-button" onClick={() => changeView("overview")}><Icon name="chevron-left" size={16} /> Overview</button></div>
+      {assignmentsState.error && <div className="page-error employee-profile-error" role="alert"><span>{assignmentsState.error}</span><button onClick={retryAssignments}>Try again</button></div>}
+      <div className="employee-week-toolbar"><button aria-label="Previous week" onClick={() => unavailable("Week navigation")}><Icon name="chevron-left" /></button><strong>Assigned work</strong><button aria-label="Next week" onClick={() => unavailable("Week navigation")}><Icon name="chevron-right" /></button></div>
+      <div className="employee-schedule-grid">
+        {assignmentsState.loading ? <div className="employee-schedule-empty" role="status"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>Loading assignments</h3><p>Fetching the work the server permits you to view.</p></div>
+          : assignments.length === 0 ? <div className="employee-schedule-empty"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>No assignment details available</h3><p>Your assigned work will appear here when the backend returns permitted assignments for your account.</p><button className="employee-outline-button" onClick={retryAssignments}><Icon name="calendar" size={15} /> Check for updates</button></div>
+            : <div className="employee-assignment-list" aria-label="Permitted assignments">{assignments.map((assignment) => <button className="employee-assignment-card" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><span><strong>{assignment.name || `Assignment ${assignment.id}`}</strong><small>{formatAssignmentDate(assignment.startTime)} · {assignment.address || "No location provided"}</small></span><em>{assignmentStatus(assignment)}</em><Icon name="chevron-right" size={16} /></button>)}</div>}
+      </div>
     </section>
+  }
+
+  function renderAssignmentDetails() {
+    if (!selectedAssignment) return null
+    const resources = assignmentResources(selectedAssignment)
+    const notes = assignmentNotes(selectedAssignment)
+    return <div className="employee-overlay" role="presentation" onClick={closeAssignmentDetails}>
+      <section className="employee-assignment-details-panel" role="dialog" aria-modal="true" aria-labelledby="assignment-details-title" onClick={(event) => event.stopPropagation()}>
+        <div className="employee-overlay-heading"><div><p className="employee-eyebrow">Assignment details</p><h2 id="assignment-details-title">{selectedAssignment.name || `Assignment ${selectedAssignment.id}`}</h2></div><button onClick={closeAssignmentDetails} aria-label="Close assignment details">×</button></div>
+        {assignmentDetailsState.loading && <div className="employee-detail-status" role="status">Refreshing details from the server…</div>}
+        {assignmentDetailsState.error && <div className="employee-detail-error" role="alert">{assignmentDetailsState.error}</div>}
+        <dl className="employee-detail-grid">
+          <div><dt>Task</dt><dd>{selectedAssignment.name || "Not provided"}</dd></div>
+          <div><dt>Status</dt><dd className="employee-detail-status-pill">{assignmentStatus(selectedAssignment)}</dd></div>
+          <div><dt>Starts</dt><dd>{formatAssignmentDate(selectedAssignment.startTime)}</dd></div>
+          <div><dt>Ends</dt><dd>{formatAssignmentDate(selectedAssignment.estimatedEndTime)}</dd></div>
+          <div><dt>Location</dt><dd>{selectedAssignment.address || "No location provided"}</dd></div>
+          <div><dt>Estimated time</dt><dd>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "Not provided"}</dd></div>
+        </dl>
+        <section className="employee-detail-section"><h3>Notes</h3><p>{notes || "No permitted notes have been added for this assignment."}</p></section>
+        <section className="employee-detail-section"><h3>Resources</h3>{resources.length === 0 ? <p>No required, recommended, or informational resources are available for this assignment.</p> : <ul>{resources.map((resource) => <li key={resource.id ?? resource.productNumber ?? resource.name}>{resource.name || resource.productNumber || `Resource ${resource.id}`}</li>)}</ul>}</section>
+      </section>
+    </div>
   }
 
   function renderSettings() {
@@ -88,15 +191,17 @@ export default function EmployeeOverview() {
   }
 
   function renderOverview() {
+    const nextAssignment = assignmentsState.items[0]
+    const upcomingAssignments = assignmentsState.items.slice(0, 4)
     return <>
       {loading && <div className="employee-profile-status" role="status">Loading your account details…</div>}
       {error && <div className="page-error employee-profile-error" role="alert"><span>{error}</span><button onClick={retry}>Try again</button></div>}
       <section className="employee-stats" aria-label="Shift and leave summary">
-        <article className="employee-stat-card is-clickable" role="button" tabIndex={0} onClick={() => changeView("schedule")} onKeyDown={(event) => event.key === "Enter" && changeView("schedule")}><div className="employee-stat-heading"><h2>Next Shift</h2><span><Icon name="calendar-check" size={16} /></span></div><p className="employee-stat-value">Unavailable</p><p className="employee-stat-caption"><Icon name="map-pin" size={12} /> Shift details are not available yet.</p></article>
+        <article className="employee-stat-card is-clickable" role="button" tabIndex={0} onClick={() => nextAssignment ? openAssignmentDetails(nextAssignment) : changeView("schedule")} onKeyDown={(event) => event.key === "Enter" && (nextAssignment ? openAssignmentDetails(nextAssignment) : changeView("schedule"))}><div className="employee-stat-heading"><h2>Next Shift</h2><span><Icon name="calendar-check" size={16} /></span></div><p className="employee-stat-value">{nextAssignment ? formatAssignmentDate(nextAssignment.startTime, { weekday: "short", day: "numeric", month: "short" }) : "Unavailable"}</p><p className="employee-stat-caption"><Icon name="map-pin" size={12} /> {nextAssignment?.address || nextAssignment?.name || "Shift details are not available yet."}</p></article>
         <article className="employee-stat-card is-clickable" role="button" tabIndex={0} onClick={() => changeView("schedule")} onKeyDown={(event) => event.key === "Enter" && changeView("schedule")}><div className="employee-stat-heading"><h2>Hours this week</h2><span><Icon name="clock" size={16} /></span></div><p className="employee-stat-value">— <span>hours</span></p><p className="employee-stat-caption">Weekly hours are not available yet.</p><div className="employee-hours-track" aria-hidden="true" /></article>
         <article className="employee-stat-card is-clickable" role="button" tabIndex={0} onClick={() => unavailable("Time off requests")} onKeyDown={(event) => event.key === "Enter" && unavailable("Time off requests")}><div className="employee-stat-heading"><h2>Time Off Balance</h2><span><Icon name="circle-check" size={16} /></span></div><p className="employee-stat-value">— <span>days</span></p><span className="employee-time-off-link">Request Time Off →</span><p className="employee-stat-caption">Leave balances are not available yet.</p></article>
       </section>
-      <section className="employee-upcoming" aria-labelledby="employee-shifts-title"><h2 id="employee-shifts-title">My Upcoming Shifts</h2><div className="employee-empty-shifts"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>Shift information is unavailable</h3><p>Your upcoming shifts will appear here when scheduling is available.</p><button className="employee-outline-button" onClick={() => changeView("schedule")}>View Schedule <Icon name="chevron-right" size={14} /></button></div></section>
+      <section className="employee-upcoming" aria-labelledby="employee-shifts-title"><h2 id="employee-shifts-title">My Upcoming Shifts</h2>{assignmentsState.loading ? <div className="employee-empty-shifts" role="status"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>Loading shifts</h3><p>Fetching permitted assignment details from the backend.</p></div> : upcomingAssignments.length === 0 ? <div className="employee-empty-shifts"><span className="employee-empty-icon"><Icon name="calendar" size={28} /></span><h3>Shift information is unavailable</h3><p>Your upcoming shifts will appear here when scheduling is available.</p><button className="employee-outline-button" onClick={() => changeView("schedule")}>View Schedule <Icon name="chevron-right" size={14} /></button></div> : <div className="employee-assignment-list" aria-label="Upcoming permitted assignments">{upcomingAssignments.map((assignment) => <button className="employee-assignment-card" key={assignment.id} type="button" onClick={() => openAssignmentDetails(assignment)}><span><strong>{assignment.name || `Assignment ${assignment.id}`}</strong><small>{formatAssignmentDate(assignment.startTime)} · {assignment.address || "No location provided"}</small></span><em>{assignmentStatus(assignment)}</em><Icon name="chevron-right" size={16} /></button>)}</div>}</section>
     </>
   }
 
@@ -114,6 +219,7 @@ export default function EmployeeOverview() {
         <header className="employee-header"><div className="employee-header-title"><h1>{activeView === "schedule" ? "My Schedule" : activeView === "settings" ? "Settings" : "My Overview"}</h1><p>{date} · {greeting}, <span title={identity}>{headerName}</span>.</p></div><div className="employee-header-controls"><button className="employee-icon-button" onClick={() => setShowNotifications(true)} aria-label="Notifications"><Icon name="bell" /></button><span className="employee-avatar" aria-label={identity} title={identity}>{avatar}</span><button className="employee-icon-button employee-settings" onClick={() => changeView("settings")} aria-label="Open settings" title="Open settings"><Icon name="settings" size={16} /></button></div></header>
         <div className="employee-body"><div className="employee-overview"><div className="employee-overview-inner">{notice && <div className="employee-notice" role="status">{notice}</div>}{activeView === "overview" ? renderOverview() : activeView === "schedule" ? renderSchedule() : renderSettings()}</div></div>{activeView === "overview" && <aside className="employee-actions" aria-label="Employee actions"><div className="employee-actions-intro"><h2>Employee Actions</h2><p>Manage your schedule and requests</p></div><section className="employee-action-section"><h3>Quick Actions</h3><div className="employee-quick-actions"><button onClick={() => unavailable("Shift change requests")}><Icon name="clock" size={16} /> Request shift change</button><button className="employee-sick-button" onClick={() => unavailable("Sick reports")}><Icon name="triangle-alert" size={16} /> Report sick</button><button onClick={() => unavailable("Time off requests")}><Icon name="calendar" size={16} /> Request time off</button></div><p className="employee-unavailable-note">Actions will submit once the backend supports them.</p></section><section className="employee-action-section"><h3>Messages &amp; Updates</h3><button className="employee-update-card" onClick={() => setNotice("Notifications are not connected to the backend yet.")}><span><Icon name="bell" size={14} /></span><span><strong>Updates unavailable</strong><small>Schedule updates are not available yet.</small></span></button></section><section className="employee-action-section employee-account"><h3>Your Account</h3><dl><div><dt>Email</dt><dd>{identity}</dd></div><div><dt>Phone</dt><dd>{loading ? "Loading…" : error && phoneNumber === "Not provided" ? "Unavailable" : phoneNumber}</dd></div></dl></section></aside>}</div>
       </main>
+      {renderAssignmentDetails()}
       {showNotifications && <div className="employee-overlay" role="presentation" onClick={() => setShowNotifications(false)}><section className="employee-notifications-panel" role="dialog" aria-modal="true" aria-labelledby="notifications-title" onClick={(event) => event.stopPropagation()}><div className="employee-overlay-heading"><div><p className="employee-eyebrow">Inbox</p><h2 id="notifications-title">Notifications</h2></div><button onClick={() => setShowNotifications(false)} aria-label="Close notifications">×</button></div><div className="employee-notifications-empty"><Icon name="bell" size={24} /><h3>{notificationsRead ? "You're all caught up" : "No notifications yet"}</h3><p>New schedule and account updates will appear here when the backend provides them.</p></div><div className="employee-notifications-footer"><button className="employee-mark-read" onClick={markAllNotificationsRead}>Mark all as read</button></div></section></div>}
       <nav className="employee-mobile-nav" aria-label="Employee mobile navigation"><button onClick={() => changeView("overview")} aria-current={activeView === "overview" ? "page" : undefined}><Icon name="align-left" size={22} /><span>Overview</span></button><button onClick={() => changeView("schedule")} aria-current={activeView === "schedule" ? "page" : undefined}><Icon name="calendar" size={22} /><span>Schedule</span></button><button onClick={() => changeView("settings")} aria-current={activeView === "settings" ? "page" : undefined}><Icon name="settings" size={22} /><span>Settings</span></button><button onClick={signOut}><Icon name="log-out" size={22} /><span>Log out</span></button></nav>
     </div>

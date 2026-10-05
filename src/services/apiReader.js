@@ -122,6 +122,10 @@ export function getAssignments(options = {}) {
   return fetchFromServer(`/assignment/all${activeOnly ? "?activeOnly=true" : ""}`, requestOptions)
 }
 
+export function getAssignment(id, options = {}) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}`, options)
+}
+
 export function createAssignment(assignment) {
   return fetchFromServer("/assignment", { method: "POST", body: assignment })
 }
