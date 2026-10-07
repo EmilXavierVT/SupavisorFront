@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
 import { AlignLeft, Bell, Calendar, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, TriangleAlert, Users, X } from "lucide-react"
 import { useNavigate } from "react-router"
-import { activateAssignment, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getRolesByTenant, getStoredUser, getUsersByTenant, logout, toggleUserActivation, updateAssignment, updateProject, updateUser, updateUserCustomRoles } from "../../services/apiReader.js"
+import { activateAssignment, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createQualification, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteQualification, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getQualifications, getRolesByTenant, getStoredUser, getUsersByTenant, logout, toggleUserActivation, updateAssignment, updateProject, updateQualification, updateUser, updateUserCustomRoles, updateUserQualifications } from "../../services/apiReader.js"
 import Brand from "../../components/PageUI/Brand.jsx"
 import styles from "./AdminDashboard.module.css"
 
 const navItems = [
-  ["Overview", AlignLeft], ["Users", Users], ["Roles", ShieldCheck], ["Assignments", Calendar], ["Projects", FileText], ["Customers", Users], ["Products", Package],
+  ["Overview", AlignLeft], ["Users", Users], ["Roles", ShieldCheck], ["Qualifications", ShieldCheck], ["Assignments", Calendar], ["Projects", FileText], ["Customers", Users], ["Products", Package],
 ]
 
 const themePalettes = {
@@ -31,7 +31,7 @@ const customColorFallbacks = {
 
 const emptyEmployeeForm = { name: "", email: "", phone: "", roles: ["Kitchen"], accessLevel: "Employee" }
 const emptyAssignmentForm = { name: "", address: "", estimatedMinutes: "", cost: "", assignedEmployeeId: "", startTime: "", isActive: true, productIds: [] }
-const emptyUserForm = { name: "", email: "", phoneNumber: "", role: "USER", customRoleIds: [] }
+const emptyUserForm = { name: "", email: "", phoneNumber: "", role: "USER", customRoleIds: [], qualificationIds: [] }
 const emptyProjectForm = { name: "", description: "", status: "DRAFT", assignmentIds: [], customerId: "" }
 const emptyCustomerForm = { name: "", email: "", address: "", postalCode: "", city: "", country: "Denmark", currency: "DKK", customerGroupNumber: "1", paymentTermsNumber: "1", vatZoneNumber: "1" }
 const emptyProductForm = { productNumber: "", name: "", description: "", salesPrice: "", costPrice: "", recommendedPrice: "", barCode: "", productGroupNumber: "1", unitNumber: "", barred: false }
@@ -95,6 +95,12 @@ export default function AdminDashboard() {
   const [roleName, setRoleName] = useState("")
   const [roleFormError, setRoleFormError] = useState("")
   const [roleSaving, setRoleSaving] = useState(false)
+  const [showQualificationModal, setShowQualificationModal] = useState(false)
+  const [qualificationModalMode, setQualificationModalMode] = useState("create")
+  const [editingQualification, setEditingQualification] = useState(null)
+  const [qualificationName, setQualificationName] = useState("")
+  const [qualificationFormError, setQualificationFormError] = useState("")
+  const [qualificationSaving, setQualificationSaving] = useState(false)
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [projectModalMode, setProjectModalMode] = useState("create")
   const [editingProject, setEditingProject] = useState(null)
@@ -108,7 +114,7 @@ export default function AdminDashboard() {
   const [customColors, setCustomColors] = useState(() => {
     try { return JSON.parse(localStorage.getItem("adminCustomColors")) || {} } catch { return {} }
   })
-  const [backendData, setBackendData] = useState({ employees: [], roles: [], assignments: [], projects: [], customers: [], products: [], loading: true, error: "", failedSources: [] })
+  const [backendData, setBackendData] = useState({ employees: [], roles: [], qualifications: [], assignments: [], projects: [], customers: [], products: [], loading: true, error: "", failedSources: [] })
   const [reloadKey, setReloadKey] = useState(0)
   const [selectedScheduleItem, setSelectedScheduleItem] = useState(null)
   const [draggedScheduleItem, setDraggedScheduleItem] = useState(null)
@@ -129,6 +135,7 @@ export default function AdminDashboard() {
       const sources = [
         ["employees", "Users", () => getUsersByTenant(user.tenantId, options)],
         ["roles", "Roles", () => getRolesByTenant(user.tenantId, options)],
+        ["qualifications", "Qualifications", () => getQualifications(options)],
         ["assignments", "Assignments", () => getAssignments(options)],
         ["projects", "Projects", () => getProjects(options)],
         ["customers", "Customers", () => getEconomicCustomers(options)],
@@ -179,6 +186,7 @@ export default function AdminDashboard() {
   const greeting = today.getHours() < 12 ? "Good morning" : today.getHours() < 18 ? "Good afternoon" : "Good evening"
   const backendEmployees = backendData.employees
   const backendRoles = backendData.roles
+  const backendQualifications = backendData.qualifications
   const backendAssignments = backendData.assignments
   const backendProjects = backendData.projects
   const backendCustomers = backendData.customers
@@ -348,7 +356,7 @@ export default function AdminDashboard() {
   function updateUserAction(employee) {
     setUserModalMode("edit")
     setEditingUser(employee)
-    setUserForm({ name: employee.name || "", email: employee.email || "", phoneNumber: employee.phoneNumber || "", role: isAdminUser(employee) ? "ADMIN" : "USER", customRoleIds: employee.customRoles?.map((role) => role.id) || [] })
+    setUserForm({ name: employee.name || "", email: employee.email || "", phoneNumber: employee.phoneNumber || "", role: isAdminUser(employee) ? "ADMIN" : "USER", customRoleIds: employee.customRoles?.map((role) => role.id) || [], qualificationIds: employee.qualifications?.map((qualification) => qualification.id) || [] })
     setUserFormError("")
     setUserRoleSearch("")
     setShowUserModal(true)
@@ -365,6 +373,13 @@ export default function AdminDashboard() {
     }))
   }
 
+  function toggleUserQualification(qualificationId) {
+    setUserForm((current) => ({
+      ...current,
+      qualificationIds: current.qualificationIds.includes(qualificationId) ? current.qualificationIds.filter((id) => id !== qualificationId) : [...current.qualificationIds, qualificationId],
+    }))
+  }
+
   async function submitUserForm(event) {
     event.preventDefault()
     const name = userForm.name.trim()
@@ -372,6 +387,7 @@ export default function AdminDashboard() {
     const phoneNumber = userForm.phoneNumber.trim()
     const role = userForm.role.trim().toUpperCase() || "USER"
     const customRoleIds = userForm.customRoleIds
+    const qualificationIds = userForm.qualificationIds
     if (!name || !email) {
       setUserFormError("Name and email are required.")
       return
@@ -393,6 +409,7 @@ export default function AdminDashboard() {
         let actionMessage = successMessage
         if (userModalMode === "create") {
           const result = await createUser({ name, email, roles: [role], customRoleIds })
+          if (qualificationIds.length > 0 && result?.user?.id) await updateUserQualifications(result.user.id, qualificationIds)
           actionMessage = result?.temporaryPassword ? `User created. Temporary password for ${result.user?.email || email}: ${result.temporaryPassword}` : "User created."
         } else {
           // customRoleIds is left out here (null keeps the current set); company roles go through the tenant-checked roles endpoint below.
@@ -400,6 +417,9 @@ export default function AdminDashboard() {
           const previousRoleIds = editingUser.customRoles?.map((customRole) => customRole.id) || []
           const rolesChanged = previousRoleIds.length !== customRoleIds.length || customRoleIds.some((id) => !previousRoleIds.includes(id))
           if (rolesChanged) await updateUserCustomRoles(editingUser.id, customRoleIds)
+          const previousQualificationIds = editingUser.qualifications?.map((qualification) => qualification.id) || []
+          const qualificationsChanged = previousQualificationIds.length !== qualificationIds.length || qualificationIds.some((id) => !previousQualificationIds.includes(id))
+          if (qualificationsChanged) await updateUserQualifications(editingUser.id, qualificationIds)
         }
         setShowUserModal(false)
         setUserForm(emptyUserForm)
@@ -477,6 +497,60 @@ export default function AdminDashboard() {
   async function deleteRoleAction(role) {
     if (!(await confirmAction({ title: "Delete role?", message: `"${role.roleName}" will be deleted and removed from every user who has it.`, confirmLabel: "Delete role", tone: "danger" }))) return
     runAction("Role deleted.", () => deleteRole(role.id))
+  }
+
+  function createQualificationAction() {
+    setQualificationModalMode("create")
+    setEditingQualification(null)
+    setQualificationName("")
+    setQualificationFormError("")
+    setShowQualificationModal(true)
+  }
+
+  function updateQualificationAction(qualification) {
+    setQualificationModalMode("edit")
+    setEditingQualification(qualification)
+    setQualificationName(qualification.name || "")
+    setQualificationFormError("")
+    setShowQualificationModal(true)
+  }
+
+  function submitQualificationForm(event) {
+    event.preventDefault()
+    const name = qualificationName.trim()
+    if (!name) {
+      setQualificationFormError("Qualification name is required.")
+      return
+    }
+    if (name.length > 255) {
+      setQualificationFormError("Qualification name must be at most 255 characters.")
+      return
+    }
+    if (backendQualifications.some((qualification) => qualification.id !== editingQualification?.id && qualification.name?.toLowerCase() === name.toLowerCase())) {
+      setQualificationFormError("A qualification with this name already exists.")
+      return
+    }
+    setQualificationSaving(true)
+    runAction(qualificationModalMode === "create" ? `Qualification "${name}" created.` : `Qualification "${name}" updated.`, async () => {
+      try {
+        if (qualificationModalMode === "create") await createQualification(name)
+        else await updateQualification(editingQualification.id, name)
+        setShowQualificationModal(false)
+        setQualificationName("")
+        setEditingQualification(null)
+      } catch (error) {
+        setQualificationFormError(error.message || "Could not save qualification.")
+        throw error
+      } finally {
+        setQualificationSaving(false)
+      }
+    })
+  }
+
+  async function deleteQualificationAction(qualification) {
+    const memberCount = backendEmployees.filter((employee) => employee.qualifications?.some((item) => item.id === qualification.id)).length
+    if (!(await confirmAction({ title: "Delete qualification?", message: `"${qualification.name}" will be removed from ${memberCount === 1 ? "1 user" : `${memberCount} users`}. Historical assignment records are kept.`, confirmLabel: "Delete qualification", tone: "danger" }))) return
+    runAction("Qualification deleted.", () => deleteQualification(qualification.id))
   }
 
   function createAssignmentAction() {
@@ -726,11 +800,12 @@ export default function AdminDashboard() {
             {backendEmployees.length === 0 ? <div className="admin-hub-empty"><Users size={24} /><p>{backendData.loading ? "Loading employees from SUPAVISOR..." : "No employees were returned by the backend."}</p></div> : <div className="admin-employee-list">{backendEmployees.map((employee) => {
               const systemRoles = Array.isArray(employee.roles) ? employee.roles : []
               const workRoles = employee.customRoles?.map((role) => role.roleName).filter(Boolean) || []
+              const qualifications = employee.qualifications?.map((qualification) => qualification.name).filter(Boolean) || []
               const displayName = employee.name || employee.email || "Unnamed employee"
-              return <article key={employee.id} className="admin-employee-row"><span className="admin-employee-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><div><strong>{displayName}</strong><span>{employee.email}</span><span>{employee.phoneNumber || "No phone number"}</span></div><span className="admin-employee-team">{workRoles.join(" · ") || "No company roles"}</span><span className="admin-employee-role">{systemRoles.join(" · ") || "USER"}</span></article>
+              return <article key={employee.id} className="admin-employee-row"><span className="admin-employee-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><div><strong>{displayName}</strong><span>{employee.email}</span><span>{employee.phoneNumber || "No phone number"}</span></div><span className="admin-employee-team">{workRoles.join(" · ") || "No company roles"} | {qualifications.join(" · ") || "No qualifications"}</span><span className="admin-employee-role">{systemRoles.join(" · ") || "USER"}</span></article>
             })}</div>}
           </div>}
-          {adminHubTab === "Roles & Permissions" && <div className="admin-hub-card"><h3>Roles &amp; Permissions</h3><p>System permissions remain controlled by backend account roles. Company roles are loaded from SUPAVISOR.</p><div className="admin-role-info"><strong>ADMIN</strong><span>Full access to the Admin dashboard and Admin Hub.</span></div><div className="admin-role-info"><strong>USER / EMPLOYEE</strong><span>Employee workspace access only.</span></div>{backendRoles.map((role) => <div className="admin-role-info" key={role.id}><strong>{role.roleName}</strong><span>Company role.</span></div>)}</div>}
+          {adminHubTab === "Roles & Permissions" && <div className="admin-hub-card"><h3>Roles &amp; Permissions</h3><p>System permissions remain controlled by backend account roles. Company roles and employee qualifications are loaded from SUPAVISOR.</p><div className="admin-role-info"><strong>ADMIN</strong><span>Full access to the Admin dashboard and Admin Hub.</span></div><div className="admin-role-info"><strong>USER / EMPLOYEE</strong><span>Employee workspace access only.</span></div>{backendRoles.map((role) => <div className="admin-role-info" key={role.id}><strong>{role.roleName}</strong><span>Company role.</span></div>)}{backendQualifications.map((qualification) => <div className="admin-role-info" key={`qualification-${qualification.id}`}><strong>{qualification.name}</strong><span>Employee qualification.</span></div>)}</div>}
           {adminHubTab === "Locations & Venues" && <div className="admin-hub-card"><h3>Locations &amp; Venues</h3><p>Location management will appear when location APIs are available.</p><div className="admin-hub-empty"><MapPin size={24} /><p>No location data is available from the backend yet.</p></div></div>}
           {adminHubTab === "Appearance" && <div className="admin-hub-appearance">{renderSettings()}</div>}
         </div>
@@ -745,7 +820,7 @@ export default function AdminDashboard() {
     }
 
     if (activePage === "Users") {
-      const users = backendEmployees.filter((employee) => matchesSearch(employee.name, employee.email, employee.phoneNumber, employee.roles?.join(" "), employee.customRoles?.map((role) => role.roleName).join(" ")))
+      const users = backendEmployees.filter((employee) => matchesSearch(employee.name, employee.email, employee.phoneNumber, employee.roles?.join(" "), employee.customRoles?.map((role) => role.roleName).join(" "), employee.qualifications?.map((qualification) => qualification.name).join(" ")))
       const userInitials = (displayName) => displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()
       const userViews = [["byRole", "By role"], ["all", "All users"]]
       // A user with several company roles appears in each of their lanes; users without one get their own lane.
@@ -762,12 +837,13 @@ export default function AdminDashboard() {
         const displayName = employee.name || employee.email || "Unnamed user"
         const systemRoles = Array.isArray(employee.roles) ? employee.roles : []
         const companyRoles = employee.customRoles?.map((role) => role.roleName).filter(Boolean) || []
+        const qualifications = employee.qualifications?.map((qualification) => qualification.name).filter(Boolean) || []
         const lastActiveAdmin = isLastActiveAdmin(employee)
         const inactive = employee.isActive === false
         return <article key={employee.id} className={`admin-employee-row admin-entity-row admin-user-row${inactive ? " is-inactive" : ""}`}>
           <span className="admin-employee-avatar">{userInitials(displayName)}</span>
           <div><strong>{displayName}</strong><span>{employee.email}</span><span>{employee.phoneNumber || "No phone number"}</span>{lastActiveAdmin && <span>Last active admin – cannot be deactivated</span>}</div>
-          <span className="admin-chip-list">{companyRoles.length === 0 ? <span className="admin-chip is-empty">No company roles</span> : companyRoles.map((roleName) => <span className="admin-chip" key={roleName}>{roleName}</span>)}</span>
+          <span className="admin-chip-list">{companyRoles.length === 0 ? <span className="admin-chip is-empty">No company roles</span> : companyRoles.map((roleName) => <span className="admin-chip" key={roleName}>{roleName}</span>)}{qualifications.length === 0 ? <span className="admin-chip is-empty">No qualifications</span> : qualifications.map((qualificationName) => <span className="admin-chip" key={`qualification-${qualificationName}`}>{qualificationName}</span>)}</span>
           <span className="admin-employee-role">{systemRoles.join(" · ") || "USER"}{inactive ? " · Inactive" : ""}</span>
           {renderUserSettingsButton(employee, displayName)}
         </article>
@@ -803,6 +879,18 @@ export default function AdminDashboard() {
           <span className="admin-employee-avatar"><ShieldCheck size={16} /></span>
           <div><strong>{role.roleName}</strong><span>{memberCount === 1 ? "1 user" : `${memberCount} users`}</span></div>
           <div className="admin-row-actions"><button type="button" className="is-danger" onClick={() => deleteRoleAction(role)}>Delete</button></div>
+        </article>
+      })}</div>}</section>
+    }
+
+    if (activePage === "Qualifications") {
+      const qualifications = backendQualifications.filter((qualification) => matchesSearch(qualification.name))
+      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Qualifications</h3><p>Tenant-scoped capabilities that can be assigned to employees separately from their primary category.</p></div><button type="button" className="admin-control-primary" onClick={createQualificationAction}><Plus size={15} /> Create qualification</button></div>{qualifications.length === 0 ? <div className="admin-hub-empty"><ShieldCheck size={24} /><p>{backendQualifications.length === 0 ? "No qualifications yet. Create one to make delegation checks possible." : "No qualifications match the current search."}</p></div> : <div className="admin-employee-list">{qualifications.map((qualification) => {
+        const memberCount = backendEmployees.filter((employee) => employee.qualifications?.some((item) => item.id === qualification.id)).length
+        return <article className="admin-employee-row admin-entity-row" key={qualification.id}>
+          <span className="admin-employee-avatar"><ShieldCheck size={16} /></span>
+          <div><strong>{qualification.name}</strong><span>{memberCount === 1 ? "1 qualified user" : `${memberCount} qualified users`}</span></div>
+          <div className="admin-row-actions"><button type="button" onClick={() => updateQualificationAction(qualification)}>Edit</button><button type="button" className="is-danger" onClick={() => deleteQualificationAction(qualification)}>Delete</button></div>
         </article>
       })}</div>}</section>
     }
@@ -859,7 +947,7 @@ export default function AdminDashboard() {
               })}</div>
             </div>
           </section>
-          <section className="admin-kpis" aria-label="Operations summary"><button onClick={() => selectPage("Assignments")}><span>Active Assignments</span><strong>{activeAssignments.length}</strong><small>{inactiveAssignments} inactive</small></button><button onClick={() => selectPage("Users")}><span>Active Users</span><strong>{activeEmployees.length}</strong><small>{backendEmployees.length} total users</small></button><button className="admin-kpi-alert" onClick={() => selectPage("Projects")}><span>Projects</span><strong>{backendProjects.length}</strong><small>From SUPAVISOR</small></button><button onClick={() => selectPage("Roles")}><span>Company Roles</span><strong>{backendRoles.length}</strong><small>Tenant scoped</small></button></section>
+          <section className="admin-kpis" aria-label="Operations summary"><button onClick={() => selectPage("Assignments")}><span>Active Assignments</span><strong>{activeAssignments.length}</strong><small>{inactiveAssignments} inactive</small></button><button onClick={() => selectPage("Users")}><span>Active Users</span><strong>{activeEmployees.length}</strong><small>{backendEmployees.length} total users</small></button><button className="admin-kpi-alert" onClick={() => selectPage("Projects")}><span>Projects</span><strong>{backendProjects.length}</strong><small>From SUPAVISOR</small></button><button onClick={() => selectPage("Qualifications")}><span>Qualifications</span><strong>{backendQualifications.length}</strong><small>Tenant scoped</small></button></section>
           <section className="admin-overview-workspace"><div className="admin-overview-main"><div className="admin-section-heading"><h2>Projects</h2><button onClick={() => selectPage("Assignments")}>View assignments →</button></div>{backendProjects.length === 0 ? <div className="admin-schedule-placeholder"><Calendar size={24} /><h3>No projects returned</h3><p>Create projects in SUPAVISOR to show live operational work here.</p></div> : <div className="admin-assignment-list">{backendProjects.slice(0, 6).map((project) => <article className="admin-assignment-card" key={project.id}><strong>{project.name}</strong><small>{project.description || "No description"}</small><em className="is-staffed">{project.status || "DRAFT"}</em></article>)}</div>}</div><aside className="admin-screening"><div className="admin-screening-heading"><h2>Screening Details</h2><button onClick={() => setNotice("Use the tabs and team filters below to screen assignments.")} aria-label="Screening options"><SlidersHorizontal size={15} /></button></div><div className="admin-tabs">{["Today's", "Staff Duty"].map((tab) => <button key={tab} className={screeningTab === tab ? "is-active" : ""} onClick={() => chooseScreeningTab(tab)} aria-pressed={screeningTab === tab}>{tab}</button>)}</div><div className="admin-screening-summary"><strong>{screeningTab === "Staff Duty" ? "Staff duty" : "Assignments"}</strong><span>{screeningFilter} · Backend filter</span></div><div className="admin-filter-pills">{["All", "Kitchen", "Cleaning"].map((filter) => <button key={filter} className={screeningFilter === filter ? "is-active" : ""} onClick={() => chooseScreeningFilter(filter)} aria-pressed={screeningFilter === filter}>{filter}</button>)}</div><div className="admin-assignment-list">{filteredAssignments.length === 0 ? <div className="admin-assignment-empty" aria-live="polite">{screeningEmptyMessage}</div> : filteredAssignments.slice(0, 5).map((assignment) => <article className="admin-assignment-card" key={assignment.id}><strong>{assignment.name}</strong><small>{assignment.address || "No address"}</small><em className={assignment.assignedEmployeeId ? "is-staffed" : "is-needed"}>{assignment.assignedEmployeeId ? "Assigned" : "Open"}</em></article>)}</div></aside></section>
           {renderScheduleControls()}
         </> : renderEntityPage()}
@@ -918,6 +1006,13 @@ export default function AdminDashboard() {
             })()}
           </>}
         </section>
+        <section className="admin-project-assignment-picker" aria-labelledby="user-qualifications-title">
+          <div><h3 id="user-qualifications-title">Qualifications</h3><p>{userForm.qualificationIds.length === 0 ? "Select additional capabilities for this user." : `${userForm.qualificationIds.length} selected`}</p></div>
+          {backendData.loading && backendQualifications.length === 0 ? <div className="admin-assignment-empty">Loading qualifications…</div> : backendData.failedSources.includes("qualifications") ? <div className="admin-assignment-empty" role="alert">Qualifications could not be loaded. Check the connection to SUPAVISOR and try again.</div> : backendQualifications.length === 0 ? <div className="admin-assignment-empty">No qualifications exist for this company yet. Create them on the Qualifications page.</div> : <div className="admin-project-assignment-list">{backendQualifications.map((qualification) => {
+            const selected = userForm.qualificationIds.includes(qualification.id)
+            return <label className={`admin-project-assignment-option${selected ? " is-selected" : ""}`} key={qualification.id}><input type="checkbox" checked={selected} onChange={() => toggleUserQualification(qualification.id)} /><span><strong>{qualification.name || `Qualification ${qualification.id}`}</strong></span></label>
+          })}</div>}
+        </section>
         {userModalMode === "edit" && editingUser && (() => {
           const inactive = editingUser.isActive === false
           const blocked = !inactive && (isLastActiveAdmin(editingUser) || isCurrentUser(editingUser))
@@ -936,6 +1031,14 @@ export default function AdminDashboard() {
         <label><span>Role name</span><input name="roleName" value={roleName} onChange={(event) => { setRoleName(event.target.value); setRoleFormError("") }} placeholder="Kitchen" maxLength={255} autoFocus required /></label>
         {roleFormError && <span className="admin-form-error" role="alert">{roleFormError}</span>}
         <div className="admin-modal-actions"><button type="button" onClick={() => setShowRoleModal(false)}>Cancel</button><button className="admin-control-primary" type="submit" disabled={roleSaving}><Plus size={15} /> {roleSaving ? "Creating…" : "Create role"}</button></div>
+      </form>
+    </section></div>}
+    {showQualificationModal && <div className="admin-modal-overlay" onClick={() => setShowQualificationModal(false)}><section className="admin-employee-modal" role="dialog" aria-modal="true" aria-labelledby="qualification-modal-title" onClick={(event) => event.stopPropagation()}>
+      <div className="admin-modal-heading"><div><p className="admin-eyebrow">Qualifications</p><h2 id="qualification-modal-title">{qualificationModalMode === "create" ? "Create qualification" : "Edit qualification"}</h2><p>Track employee capabilities independently from company roles and primary categories.</p></div><button type="button" onClick={() => setShowQualificationModal(false)} aria-label="Close qualification form"><X size={18} /></button></div>
+      <form className="admin-employee-form" onSubmit={submitQualificationForm}>
+        <label><span>Qualification name</span><input name="qualificationName" value={qualificationName} onChange={(event) => { setQualificationName(event.target.value); setQualificationFormError("") }} placeholder="Food safety certificate" maxLength={255} autoFocus required /></label>
+        {qualificationFormError && <span className="admin-form-error" role="alert">{qualificationFormError}</span>}
+        <div className="admin-modal-actions"><button type="button" onClick={() => setShowQualificationModal(false)}>Cancel</button><button className="admin-control-primary" type="submit" disabled={qualificationSaving}>{qualificationSaving ? "Saving…" : qualificationModalMode === "create" ? <><Plus size={15} /> Create qualification</> : "Save changes"}</button></div>
       </form>
     </section></div>}
     {showProjectModal && <div className="admin-modal-overlay" onClick={() => setShowProjectModal(false)}><section className="admin-employee-modal admin-assignment-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title" onClick={(event) => event.stopPropagation()}>
