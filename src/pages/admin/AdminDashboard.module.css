@@ -160,6 +160,26 @@
 .shell :global(.admin-staffing-alert button) { width: 100%; min-height: 38px; margin-top: 14px; border: 1px solid #fecaca; border-radius: 8px; color: var(--admin-danger); background: var(--admin-card); font-size: 11px; font-weight: 600; }
 .shell :global(.admin-selected-empty) { display: flex; min-height: 150px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; border: 1px dashed var(--admin-border); border-radius: 9px; color: var(--admin-subtle); text-align: center; }
 .shell :global(.admin-selected-empty p) { max-width: 210px; font-size: 12px; }
+.shell :global(.admin-delegation-empty) { color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-delegation-list) { display: grid; gap: 8px; margin: 0 0 12px; padding: 0; list-style: none; }
+.shell :global(.admin-delegation-list li) { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid var(--admin-border); border-radius: 8px; }
+.shell :global(.admin-delegation-list li > span) { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.shell :global(.admin-delegation-list strong) { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.shell :global(.admin-delegation-list small) { color: var(--admin-subtle); font-size: 11px; overflow-wrap: anywhere; }
+.shell :global(.admin-delegation-list button) { display: grid; flex: none; width: 28px; height: 28px; place-items: center; border: 1px solid var(--admin-border); border-radius: 6px; color: var(--admin-subtle); background: var(--admin-card); }
+.shell :global(.admin-delegation-list button:hover:not(:disabled)) { color: var(--admin-danger); border-color: var(--admin-danger); }
+.shell :global(.admin-delegation-list .admin-delegation-edit:hover:not(:disabled)) { color: var(--admin-text); border-color: var(--admin-primary); }
+.shell :global(.admin-delegation-form) { display: flex; gap: 8px; margin-top: 12px; }
+.shell :global(.admin-delegation-form select) { min-width: 0; flex: 1; min-height: 40px; padding: 0 10px; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-text); background: var(--admin-card); }
+.shell :global(.admin-delegation-form .admin-control-primary) { min-height: 40px; justify-content: center; padding: 0 14px; }
+.shell :global(.admin-delegation-form .admin-control-primary:disabled) { opacity: 0.55; }
+.shell :global(.admin-delegation-change) { flex: none; min-height: 28px; padding: 0 10px; border: 1px solid var(--admin-border); border-radius: 6px; color: var(--admin-text); background: var(--admin-card); font-size: 12px; font-weight: 500; }
+.shell :global(.admin-delegation-change:hover:not(:disabled)) { border-color: var(--admin-primary); }
+.shell :global(.admin-delegation-form .admin-delegation-change) { min-height: 40px; }
+.shell :global(.admin-delegation-set-responsible) { width: 100%; min-height: 36px; margin-bottom: 4px; }
+.shell :global(.admin-assignment-employees) { display: block; margin-top: 2px; color: var(--admin-subtle); }
+.shell :global(.admin-assign-employees-modal) { width: min(460px, calc(100vw - 32px)); }
+.shell :global(.admin-assign-employees-modal h3) { margin: 18px 0 10px; color: var(--admin-subtle); font-size: 12px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
 
 /* Placeholder pages. */
 .shell :global(.admin-placeholder) { display: flex; min-height: 430px; flex-direction: column; align-items: center; justify-content: center; padding: 32px 20px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-card); text-align: center; }
