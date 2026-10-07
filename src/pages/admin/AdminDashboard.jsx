@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { AlignLeft, Bell, Calendar, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, TriangleAlert, Users, X } from "lucide-react"
+import { AlignLeft, Bell, Calendar, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, TriangleAlert, UserPen, Users, X } from "lucide-react"
 import { useNavigate } from "react-router"
-import { activateAssignment, clearAssignmentResponsible, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createQualification, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteQualification, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getQualifications, getRolesByTenant, getStoredUser, getUsersByTenant, logout, setAssignmentResponsible, toggleUserActivation, updateAssignment, updateProject, updateQualification, updateUser, updateUserCustomRoles, updateUserQualifications } from "../../services/apiReader.js"
+import { activateAssignment, clearAssignmentResponsible, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createQualification, createRole, createUser, deactivateAssignment, delegateAssignment, deleteAssignment, deleteProject, deleteQualification, deleteRole, getAssignmentDelegations, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getQualifications, getRolesByTenant, getStoredUser, getUsersByTenant, logout, removeAssignmentDelegation, setAssignmentResponsible, toggleUserActivation, updateAssignment, updateProject, updateQualification, updateUser, updateUserCustomRoles, updateUserQualifications } from "../../services/apiReader.js"
 import Brand from "../../components/PageUI/Brand.jsx"
 import styles from "./AdminDashboard.module.css"
 
@@ -34,6 +34,7 @@ const emptyAssignmentForm = { name: "", address: "", estimatedMinutes: "", cost:
 const emptyUserForm = { name: "", email: "", phoneNumber: "", role: "USER", customRoleIds: [], qualificationIds: [] }
 const emptyProjectForm = { name: "", description: "", status: "DRAFT", assignmentIds: [], customerId: "" }
 const emptyCustomerForm = { name: "", email: "", address: "", postalCode: "", city: "", country: "Denmark", currency: "DKK", customerGroupNumber: "1", paymentTermsNumber: "1", vatZoneNumber: "1" }
+const delegableAssignmentStates = ["PLANNED", "ACKNOWLEDGED", "AUTO_ACCEPTED"]
 const emptyProductForm = { productNumber: "", name: "", description: "", salesPrice: "", costPrice: "", recommendedPrice: "", barCode: "", productGroupNumber: "1", unitNumber: "", barred: false }
 
 function normalizeEconomicList(response) {
@@ -119,6 +120,13 @@ export default function AdminDashboard() {
   const [reloadKey, setReloadKey] = useState(0)
   const [selectedScheduleItem, setSelectedScheduleItem] = useState(null)
   const [draggedScheduleItem, setDraggedScheduleItem] = useState(null)
+  const [delegations, setDelegations] = useState({ assignmentId: null, items: [], loading: false, error: "" })
+  const [delegationReloadKey, setDelegationReloadKey] = useState(0)
+  const [delegateEmployeeId, setDelegateEmployeeId] = useState("")
+  const [delegationSaving, setDelegationSaving] = useState(false)
+  const [assignEmployeesFor, setAssignEmployeesFor] = useState(null)
+  const [responsibleFormOpen, setResponsibleFormOpen] = useState(false)
+  const [responsibleEmployeeId, setResponsibleEmployeeId] = useState("")
 
   useEffect(() => {
     const controller = new AbortController()
@@ -161,6 +169,25 @@ export default function AdminDashboard() {
     loadDashboardData()
     return () => { active = false; controller.abort() }
   }, [user?.tenantId, reloadKey])
+
+  const delegationTargetId = assignEmployeesFor?.id ?? selectedScheduleItem?.assignment?.id
+
+  useEffect(() => {
+    setDelegateEmployeeId("")
+    setResponsibleFormOpen(false)
+    setResponsibleEmployeeId("")
+    if (delegationTargetId == null) {
+      setDelegations({ assignmentId: null, items: [], loading: false, error: "" })
+      return
+    }
+    const controller = new AbortController()
+    let active = true
+    setDelegations((current) => ({ assignmentId: delegationTargetId, items: current.assignmentId === delegationTargetId ? current.items : [], loading: true, error: "" }))
+    getAssignmentDelegations(delegationTargetId, { signal: controller.signal })
+      .then((items) => { if (active) setDelegations({ assignmentId: delegationTargetId, items: Array.isArray(items) ? items : [], loading: false, error: "" }) })
+      .catch((error) => { if (active && error.name !== "AbortError") setDelegations({ assignmentId: delegationTargetId, items: [], loading: false, error: error.message || "Could not load assigned employees." }) })
+    return () => { active = false; controller.abort() }
+  }, [delegationTargetId, delegationReloadKey])
 
   useEffect(() => {
     if (!confirmDialog) return
@@ -667,6 +694,87 @@ export default function AdminDashboard() {
     runAction("Assignment deleted.", () => deleteAssignment(assignment.id))
   }
 
+  function employeeLabel(employee) {
+    return employee?.name || employee?.email || `User ${employee?.id}`
+  }
+
+  async function assignEmployeeAction(event, assignment) {
+    event.preventDefault()
+    if (!assignment || !delegateEmployeeId) return
+    const employee = backendEmployees.find((item) => String(item.id) === String(delegateEmployeeId))
+    setDelegationSaving(true)
+    setDelegations((current) => ({ ...current, error: "" }))
+    try {
+      await delegateAssignment(assignment.id, Number(delegateEmployeeId))
+      setNotice(`${employeeLabel(employee)} was assigned to "${assignment.name}".`)
+      setDelegateEmployeeId("")
+      setDelegationReloadKey((key) => key + 1)
+      setReloadKey((key) => key + 1)
+    } catch (error) {
+      setDelegations((current) => ({ ...current, error: error.message || "Could not assign the employee." }))
+    } finally {
+      setDelegationSaving(false)
+    }
+  }
+
+  async function unassignEmployeeAction(assignment, delegation) {
+    const name = delegation.employeeName || delegation.employeeEmail || `User ${delegation.employeeId}`
+    if (!(await confirmAction({ title: "Remove employee?", message: `${name} will no longer have "${assignment.name}" in their schedule.`, confirmLabel: "Remove", tone: "danger" }))) return
+    setDelegationSaving(true)
+    setDelegations((current) => ({ ...current, error: "" }))
+    try {
+      await removeAssignmentDelegation(assignment.id, delegation.employeeId)
+      setNotice(`${name} was removed from "${assignment.name}".`)
+      setDelegationReloadKey((key) => key + 1)
+      setReloadKey((key) => key + 1)
+    } catch (error) {
+      setDelegations((current) => ({ ...current, error: error.message || "Could not remove the employee." }))
+    } finally {
+      setDelegationSaving(false)
+    }
+  }
+
+  async function changeResponsibleAction(event, assignment) {
+    event.preventDefault()
+    if (!assignment || !responsibleEmployeeId) return
+    setDelegationSaving(true)
+    setDelegations((current) => ({ ...current, error: "" }))
+    try {
+      const updated = await setAssignmentResponsible(assignment.id, Number(responsibleEmployeeId))
+      setNotice(`${updated?.assignedEmployeeName || "The selected employee"} is now responsible for "${assignment.name}".`)
+      if (updated) {
+        setSelectedScheduleItem((item) => item?.assignment?.id === updated.id ? { ...item, assignment: { ...item.assignment, ...updated } } : item)
+        setAssignEmployeesFor((current) => current?.id === updated.id ? { ...current, ...updated } : current)
+      }
+      setResponsibleFormOpen(false)
+      setResponsibleEmployeeId("")
+      setDelegationReloadKey((key) => key + 1)
+      setReloadKey((key) => key + 1)
+    } catch (error) {
+      setDelegations((current) => ({ ...current, error: error.message || "Could not change the responsible employee." }))
+    } finally {
+      setDelegationSaving(false)
+    }
+  }
+
+  function renderAssignedEmployees(assignment) {
+    const assignedIds = new Set(delegations.items.map((item) => String(item.employeeId)))
+    const candidates = activeEmployees.filter((employee) => !assignedIds.has(String(employee.id)) && String(employee.id) !== String(assignment.assignedEmployeeId ?? ""))
+    const responsibleCandidates = activeEmployees.filter((employee) => String(employee.id) !== String(assignment.assignedEmployeeId ?? ""))
+    const canAssign = assignment.isActive !== false && delegableAssignmentStates.includes(assignment.state || "PLANNED")
+    const formatAssignedAt = (value) => value ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : ""
+    return <section aria-labelledby={`assigned-employees-${assignment.id}`}><h3 id={`assigned-employees-${assignment.id}`}>Assigned employees</h3>
+      {delegations.loading && delegations.items.length === 0 ? <p className="admin-delegation-empty" role="status">Loading assigned employees…</p>
+        : delegations.items.length === 0 && !assignment.assignedEmployeeId ? (!delegations.error && <p className="admin-delegation-empty">No employees are assigned to this assignment yet.</p>)
+          : <ul className="admin-delegation-list">{assignment.assignedEmployeeId && <li key="responsible"><span><strong>{assignment.assignedEmployeeName || `User ${assignment.assignedEmployeeId}`}</strong><small>Responsible</small></span>{!responsibleFormOpen && <button type="button" className="admin-delegation-edit" onClick={() => setResponsibleFormOpen(true)} disabled={delegationSaving} aria-label="Change responsible employee" title="Change responsible employee"><UserPen size={14} /></button>}</li>}{delegations.items.map((delegation) => <li key={delegation.employeeId}><span><strong>{delegation.employeeName || delegation.employeeEmail || `User ${delegation.employeeId}`}</strong><small>Assigned by {delegation.delegatedBy || "unknown"} · {formatAssignedAt(delegation.delegatedAt)}</small></span><button type="button" onClick={() => unassignEmployeeAction(assignment, delegation)} disabled={delegationSaving} aria-label={`Remove ${delegation.employeeName || delegation.employeeEmail || "employee"} from this assignment`} title="Remove employee"><X size={14} /></button></li>)}</ul>}
+      {responsibleFormOpen ? <form className="admin-delegation-form" onSubmit={(event) => changeResponsibleAction(event, assignment)}><select value={responsibleEmployeeId} onChange={(event) => { setResponsibleEmployeeId(event.target.value); setDelegations((current) => ({ ...current, error: "" })) }} aria-label="New responsible employee" disabled={delegationSaving} autoFocus><option value="">Choose responsible</option>{responsibleCandidates.map((employee) => <option key={employee.id} value={employee.id}>{employeeLabel(employee)}{assignedIds.has(String(employee.id)) ? " (assigned)" : ""}</option>)}</select><button type="submit" className="admin-control-primary" disabled={delegationSaving || !responsibleEmployeeId}>{delegationSaving ? "Saving…" : "Save"}</button><button type="button" className="admin-delegation-change" onClick={() => { setResponsibleFormOpen(false); setResponsibleEmployeeId("") }} disabled={delegationSaving}>Cancel</button></form>
+        : !assignment.assignedEmployeeId && <button type="button" className="admin-delegation-change admin-delegation-set-responsible" onClick={() => setResponsibleFormOpen(true)} disabled={delegationSaving}>Set responsible employee</button>}
+      {canAssign ? <form className="admin-delegation-form" onSubmit={(event) => assignEmployeeAction(event, assignment)}><select value={delegateEmployeeId} onChange={(event) => { setDelegateEmployeeId(event.target.value); setDelegations((current) => ({ ...current, error: "" })) }} aria-label="Employee to assign" disabled={delegationSaving || candidates.length === 0}><option value="">{candidates.length === 0 ? "No more active employees" : "Choose an employee"}</option>{candidates.map((employee) => <option key={employee.id} value={employee.id}>{employeeLabel(employee)}</option>)}</select><button type="submit" className="admin-control-primary" disabled={delegationSaving || !delegateEmployeeId}>{delegationSaving ? "Saving…" : "Assign employee"}</button></form>
+        : <p className="admin-delegation-empty">Employees can only be assigned to active assignments that have not started.</p>}
+      {delegations.error && <span className="admin-form-error" role="alert">{delegations.error}</span>}
+    </section>
+  }
+
   function createProjectAction() {
     setProjectModalMode("create")
     setEditingProject(null)
@@ -842,7 +950,7 @@ export default function AdminDashboard() {
       return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Quick actions</p><h2>Schedule Controls</h2><p>Create work, group it into projects, or select an event on the calendar to edit it.</p></div><section><h3>Create</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={createAssignmentAction}><Plus size={18} /><strong>New assignment</strong><span>Schedule work with start time, employee, cost, and duration.</span></button><button className="admin-quick-action-card" onClick={createProjectAction}><FileText size={18} /><strong>New project</strong><span>Group assignment IDs and track project status.</span></button></div></section><section><h3>Calendar selection</h3><div className="admin-selected-empty"><Search size={22} /><p>Select an assignment on the calendar to edit, deactivate, delete, or adjust its project membership.</p></div></section></aside>
     }
 
-    return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Selected work</p><h2>{selectedProject?.name || "No project"}</h2><p>{selectedProject ? `${selectedProject.status || "DRAFT"} · ` : "Standalone · "}Assignment #{selectedAssignment.id}</p></div><section><h3>Assignment Info</h3><div className="admin-selected-empty"><strong>{selectedAssignment.name}</strong><p>{selectedAssignment.startTime ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedAssignment.startTime)) : "No scheduled start"}</p><p>{selectedAssignment.estimatedEndTime ? `Ends ${new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(new Date(selectedAssignment.estimatedEndTime))}` : "No estimated end"}</p><p>{selectedAssignment.address || "No address"}</p><p>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "No time estimate"} · {selectedAssignment.cost ?? "No cost"}</p><p>{selectedResponsible ? `Responsible: ${responsibleLabel(selectedResponsible)}` : "No responsible person"}</p></div></section><section><h3>Actions</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={() => updateAssignmentAction(selectedAssignment)}><Calendar size={18} /><strong>Edit assignment</strong><span>Change schedule, employee, address, cost, or duration.</span></button><button className="admin-quick-action-card" onClick={() => toggleAssignmentAction(selectedAssignment)}><ShieldCheck size={18} /><strong>{selectedAssignment.isActive === false ? "Activate" : "Deactivate"}</strong><span>{selectedAssignment.isActive === false ? "Make this assignment selectable again." : "Keep history but hide it from active work."}</span></button><button className="admin-quick-action-card" onClick={() => deleteAssignmentAction(selectedAssignment)}><X size={18} /><strong>Delete</strong><span>Only succeeds if the backend says it is not in use.</span></button>{selectedProject && <button className="admin-quick-action-card" onClick={() => updateProjectAction(selectedProject)}><FileText size={18} /><strong>Edit project</strong><span>Adjust status or assignment IDs.</span></button>}</div></section></aside>
+    return <aside className="admin-controls-panel" aria-label="Schedule controls"><div><p className="admin-eyebrow">Selected work</p><h2>{selectedProject?.name || "No project"}</h2><p>{selectedProject ? `${selectedProject.status || "DRAFT"} · ` : "Standalone · "}Assignment #{selectedAssignment.id}</p></div><section><h3>Assignment Info</h3><div className="admin-selected-empty"><strong>{selectedAssignment.name}</strong><p>{selectedAssignment.startTime ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedAssignment.startTime)) : "No scheduled start"}</p><p>{selectedAssignment.estimatedEndTime ? `Ends ${new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(new Date(selectedAssignment.estimatedEndTime))}` : "No estimated end"}</p><p>{selectedAssignment.address || "No address"}</p><p>{selectedAssignment.estimatedMinutes ? `${selectedAssignment.estimatedMinutes} minutes` : "No time estimate"} · {selectedAssignment.cost ?? "No cost"}</p><p>{selectedResponsible ? `Responsible: ${responsibleLabel(selectedResponsible)}` : "No responsible person"}</p></div></section>{renderAssignedEmployees(selectedAssignment)}<section><h3>Actions</h3><div className="admin-quick-action-grid"><button className="admin-quick-action-card is-primary" onClick={() => updateAssignmentAction(selectedAssignment)}><Calendar size={18} /><strong>Edit assignment</strong><span>Change schedule, employee, address, cost, or duration.</span></button><button className="admin-quick-action-card" onClick={() => toggleAssignmentAction(selectedAssignment)}><ShieldCheck size={18} /><strong>{selectedAssignment.isActive === false ? "Activate" : "Deactivate"}</strong><span>{selectedAssignment.isActive === false ? "Make this assignment selectable again." : "Keep history but hide it from active work."}</span></button><button className="admin-quick-action-card" onClick={() => deleteAssignmentAction(selectedAssignment)}><X size={18} /><strong>Delete</strong><span>Only succeeds if the backend says it is not in use.</span></button>{selectedProject && <button className="admin-quick-action-card" onClick={() => updateProjectAction(selectedProject)}><FileText size={18} /><strong>Edit project</strong><span>Adjust status or assignment IDs.</span></button>}</div></section></aside>
   }
 
   function renderAdminHub() {
@@ -880,7 +988,6 @@ export default function AdminDashboard() {
       const users = backendEmployees.filter((employee) => matchesSearch(employee.name, employee.email, employee.phoneNumber, employee.roles?.join(" "), employee.customRoles?.map((role) => role.roleName).join(" "), employee.qualifications?.map((qualification) => qualification.name).join(" ")))
       const userInitials = (displayName) => displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()
       const userViews = [["byRole", "By role"], ["all", "All users"]]
-      // A user with several company roles appears in each of their lanes; users without one get their own lane.
       const roleLanes = [
         ...backendRoles.map((role) => ({ key: role.id, title: role.roleName, users: users.filter((employee) => employee.customRoles?.some((customRole) => customRole.id === role.id)) })),
         { key: "none", title: "No company role", users: users.filter((employee) => !employee.customRoles?.length) },
@@ -953,8 +1060,9 @@ export default function AdminDashboard() {
     }
 
     if (activePage === "Assignments") {
-      const assignments = backendAssignments.filter((assignment) => matchesSearch(assignment.name, assignment.address, assignment.id, assignment.assignedEmployeeId))
-      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Assignments</h3><p>Create and manage assignment templates. Deactivate assignments that are in use.</p></div><button type="button" className="admin-control-primary" onClick={createAssignmentAction}><Plus size={15} /> Create assignment</button></div>{assignments.length === 0 ? <div className="admin-hub-empty"><Calendar size={24} /><p>No assignments match the current search.</p></div> : <div className="admin-assignment-list">{assignments.map((assignment) => <article className="admin-assignment-card" key={assignment.id}><strong>{assignment.name}</strong><small>{assignment.address || "No address"} · {assignment.estimatedMinutes ? `${assignment.estimatedMinutes} min` : "No estimate"} · {assignment.cost ?? "No cost"} · {(assignment.productIds?.length ?? assignment.products?.length ?? 0)} products</small>{renderResponsiblePicker(assignment)}<div className="admin-modal-actions"><button type="button" onClick={() => updateAssignmentAction(assignment)}>Edit</button><button type="button" onClick={() => toggleAssignmentAction(assignment)}>{assignment.isActive === false ? "Activate" : "Deactivate"}</button><button type="button" onClick={() => deleteAssignmentAction(assignment)}>Delete</button></div><em className={assignment.isActive === false ? "is-needed" : "is-staffed"}>{assignment.isActive === false ? "Inactive" : "Active"}</em></article>)}</div>}</section>
+      const assignments = backendAssignments.filter((assignment) => matchesSearch(assignment.name, assignment.address, assignment.id, assignment.assignedEmployeeId, assignment.assignedEmployeeName, assignment.assignedEmployees?.map((item) => item.employeeName || item.employeeEmail).join(" ")))
+      const assignedNames = (assignment) => [assignment.assignedEmployeeName, ...(assignment.assignedEmployees || []).map((item) => item.employeeName || item.employeeEmail)].filter(Boolean)
+      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Assignments</h3><p>Create and manage assignment templates. Deactivate assignments that are in use.</p></div><button type="button" className="admin-control-primary" onClick={createAssignmentAction}><Plus size={15} /> Create assignment</button></div>{assignments.length === 0 ? <div className="admin-hub-empty"><Calendar size={24} /><p>No assignments match the current search.</p></div> : <div className="admin-assignment-list">{assignments.map((assignment) => <article className="admin-assignment-card" key={assignment.id}><strong>{assignment.name}</strong><small>{assignment.address || "No address"} · {assignment.estimatedMinutes ? `${assignment.estimatedMinutes} min` : "No estimate"} · {assignment.cost ?? "No cost"} · {(assignment.productIds?.length ?? assignment.products?.length ?? 0)} products</small>{renderResponsiblePicker(assignment)}<small className="admin-assignment-employees">{assignedNames(assignment).length === 0 ? "No employees assigned" : `Employees: ${assignedNames(assignment).join(", ")}`}</small><div className="admin-modal-actions"><button type="button" onClick={() => updateAssignmentAction(assignment)}>Edit</button><button type="button" onClick={() => setAssignEmployeesFor(assignment)}>Employees</button><button type="button" onClick={() => toggleAssignmentAction(assignment)}>{assignment.isActive === false ? "Activate" : "Deactivate"}</button><button type="button" onClick={() => deleteAssignmentAction(assignment)}>Delete</button></div><em className={assignment.isActive === false ? "is-needed" : "is-staffed"}>{assignment.isActive === false ? "Inactive" : assignedNames(assignment).length > 0 ? `${assignedNames(assignment).length} assigned` : "Active"}</em></article>)}</div>}</section>
     }
 
     if (activePage === "Projects") {
@@ -1118,6 +1226,10 @@ export default function AdminDashboard() {
         {projectFormError && <span className="admin-form-error" role="alert">{projectFormError}</span>}
         <div className="admin-modal-actions"><button type="button" onClick={() => setShowProjectModal(false)}>Cancel</button><button className="admin-control-primary" type="submit"><Plus size={15} /> {projectModalMode === "create" ? "Create project" : "Save project"}</button></div>
       </form>
+    </section></div>}
+    {assignEmployeesFor && <div className="admin-modal-overlay" onClick={() => setAssignEmployeesFor(null)}><section className="admin-employee-modal admin-assign-employees-modal" role="dialog" aria-modal="true" aria-labelledby="assign-employees-title" onClick={(event) => event.stopPropagation()}>
+      <div className="admin-modal-heading"><div><p className="admin-eyebrow">Assignment</p><h2 id="assign-employees-title">{assignEmployeesFor.name}</h2><p>Assign one or more employees. Assigned work appears in their schedule.</p></div><button type="button" onClick={() => setAssignEmployeesFor(null)} aria-label="Close assign employees"><X size={18} /></button></div>
+      {renderAssignedEmployees(backendAssignments.find((item) => item.id === assignEmployeesFor.id) || assignEmployeesFor)}
     </section></div>}
     {showAssignmentModal && <div className="admin-modal-overlay" onClick={() => setShowAssignmentModal(false)}><section className="admin-employee-modal admin-assignment-modal" role="dialog" aria-modal="true" aria-labelledby="assignment-modal-title" onClick={(event) => event.stopPropagation()}>
       <div className="admin-modal-heading"><div><p className="admin-eyebrow">Schedule</p><h2 id="assignment-modal-title">{assignmentModalMode === "create" ? "Create assignment" : "Edit assignment"}</h2><p>Schedule work with the backend assignment datetime.</p></div><button type="button" onClick={() => setShowAssignmentModal(false)} aria-label="Close assignment form"><X size={18} /></button></div>

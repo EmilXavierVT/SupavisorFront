@@ -28,7 +28,10 @@ export async function fetchFromServer(url, options = {}) {
     error.status = response.status
     throw error
   }
-  return (response.headers.get("content-type") ?? "").includes("application/json") ? response.json() : response.text()
+  // 204 responses still carry the backend's default JSON content type, so only parse when there is a body
+  const text = await response.text()
+  if (!text) return null
+  return (response.headers.get("content-type") ?? "").includes("application/json") ? JSON.parse(text) : text
 }
 
 function extractServerMessage(errorText) {
@@ -172,6 +175,18 @@ export function setAssignmentResponsible(id, assignedEmployeeId) {
 
 export function clearAssignmentResponsible(id) {
   return fetchFromServer(`/assignment/${encodeURIComponent(id)}/responsible`, { method: "DELETE" })
+}
+
+export function getAssignmentDelegations(id, options = {}) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}/delegations`, options)
+}
+
+export function delegateAssignment(id, employeeId) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}/delegations`, { method: "POST", body: { employeeId } })
+}
+
+export function removeAssignmentDelegation(id, employeeId) {
+  return fetchFromServer(`/assignment/${encodeURIComponent(id)}/delegations/${encodeURIComponent(employeeId)}`, { method: "DELETE" })
 }
 
 export function getProjects(options = {}) {
