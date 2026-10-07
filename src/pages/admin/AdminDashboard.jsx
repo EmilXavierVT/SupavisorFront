@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { AlignLeft, Bell, Calendar, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, Users, X } from "lucide-react"
+import { AlignLeft, Bell, Calendar, FileText, LogOut, MapPin, Moon, Package, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sun, TriangleAlert, Users, X } from "lucide-react"
 import { useNavigate } from "react-router"
 import { activateAssignment, clearAssignmentResponsible, createAssignment, createEconomicCustomer, createEconomicProduct, createProject, createRole, createUser, deactivateAssignment, deleteAssignment, deleteProject, deleteRole, getAssignments, getEconomicCustomers, getEconomicProducts, getProjects, getRolesByTenant, getStoredUser, getUsersByTenant, logout, setAssignmentResponsible, toggleUserActivation, updateAssignment, updateProject, updateUser, updateUserCustomRoles } from "../../services/apiReader.js"
 import Brand from "../../components/PageUI/Brand.jsx"
@@ -31,7 +31,7 @@ const customColorFallbacks = {
 
 const emptyEmployeeForm = { name: "", email: "", phone: "", roles: ["Kitchen"], accessLevel: "Employee" }
 const emptyAssignmentForm = { name: "", address: "", estimatedMinutes: "", cost: "", assignedEmployeeId: "", startTime: "", isActive: true, productIds: [] }
-const emptyUserForm = { name: "", email: "", phoneNumber: "", role: "USER", customRoleIds: "" }
+const emptyUserForm = { name: "", email: "", phoneNumber: "", role: "USER", customRoleIds: [] }
 const emptyProjectForm = { name: "", description: "", status: "DRAFT", assignmentIds: [], customerId: "" }
 const emptyCustomerForm = { name: "", email: "", address: "", postalCode: "", city: "", country: "Denmark", currency: "DKK", customerGroupNumber: "1", paymentTermsNumber: "1", vatZoneNumber: "1" }
 const emptyProductForm = { productNumber: "", name: "", description: "", salesPrice: "", costPrice: "", recommendedPrice: "", barCode: "", productGroupNumber: "1", unitNumber: "", barred: false }
@@ -88,6 +88,14 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState(null)
   const [userForm, setUserForm] = useState(emptyUserForm)
   const [userFormError, setUserFormError] = useState("")
+  const [userRoleSearch, setUserRoleSearch] = useState("")
+  const [usersView, setUsersView] = useState("byRole")
+  const [userSaving, setUserSaving] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState(null)
+  const [showRoleModal, setShowRoleModal] = useState(false)
+  const [roleName, setRoleName] = useState("")
+  const [roleFormError, setRoleFormError] = useState("")
+  const [roleSaving, setRoleSaving] = useState(false)
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [projectModalMode, setProjectModalMode] = useState("create")
   const [editingProject, setEditingProject] = useState(null)
@@ -101,7 +109,7 @@ export default function AdminDashboard() {
   const [customColors, setCustomColors] = useState(() => {
     try { return JSON.parse(localStorage.getItem("adminCustomColors")) || {} } catch { return {} }
   })
-  const [backendData, setBackendData] = useState({ employees: [], roles: [], assignments: [], projects: [], customers: [], products: [], loading: true, error: "" })
+  const [backendData, setBackendData] = useState({ employees: [], roles: [], assignments: [], projects: [], customers: [], products: [], loading: true, error: "", failedSources: [] })
   const [reloadKey, setReloadKey] = useState(0)
   const [selectedScheduleItem, setSelectedScheduleItem] = useState(null)
   const [draggedScheduleItem, setDraggedScheduleItem] = useState(null)
@@ -117,26 +125,47 @@ export default function AdminDashboard() {
       }
 
       setBackendData((current) => ({ ...current, loading: true, error: "" }))
-      try {
-        const [employees, roles, assignments, projects, customers, products] = await Promise.all([
-          getUsersByTenant(user.tenantId, { signal: controller.signal }),
-          getRolesByTenant(user.tenantId, { signal: controller.signal }),
-          getAssignments({ signal: controller.signal }),
-          getProjects({ signal: controller.signal }),
-          getEconomicCustomers({ signal: controller.signal }),
-          getEconomicProducts({ signal: controller.signal }),
-        ])
-        if (!active) return
-        setBackendData({ employees, roles, assignments, projects, customers: normalizeEconomicList(customers), products: normalizeEconomicList(products), loading: false, error: "" })
-      } catch (error) {
-        if (!active || error.name === "AbortError") return
-        setBackendData((current) => ({ ...current, loading: false, error: error.message || "Unable to load company data." }))
-      }
+      const options = { signal: controller.signal }
+      const sources = [
+        ["employees", "Users", () => getUsersByTenant(user.tenantId, options)],
+        ["roles", "Roles", () => getRolesByTenant(user.tenantId, options)],
+        ["assignments", "Assignments", () => getAssignments(options)],
+        ["projects", "Projects", () => getProjects(options)],
+        ["customers", "Customers", () => getEconomicCustomers(options)],
+        ["products", "Products", () => getEconomicProducts(options)],
+      ]
+      const results = await Promise.allSettled(sources.map(([, , load]) => load()))
+      if (!active) return
+      const nextData = { loading: false, failedSources: [] }
+      const failures = []
+      results.forEach((result, index) => {
+        const [key, label] = sources[index]
+        if (result.status === "fulfilled") {
+          nextData[key] = normalizeEconomicList(result.value)
+        } else {
+          nextData[key] = []
+          nextData.failedSources.push(key)
+          failures.push(`${label}: ${result.reason?.message || "unable to load"}`)
+        }
+      })
+      setBackendData({ ...nextData, error: failures.join(" · ") })
     }
 
     loadDashboardData()
     return () => { active = false; controller.abort() }
   }, [user?.tenantId, reloadKey])
+
+  useEffect(() => {
+    if (!confirmDialog) return
+    function cancelOnEscape(event) {
+      if (event.key !== "Escape") return
+      event.stopPropagation()
+      confirmDialog.resolve(false)
+      setConfirmDialog(null)
+    }
+    window.addEventListener("keydown", cancelOnEscape, true)
+    return () => window.removeEventListener("keydown", cancelOnEscape, true)
+  }, [confirmDialog])
 
   function selectPage(page) {
     setActivePage(page)
@@ -271,6 +300,15 @@ export default function AdminDashboard() {
     setNotice(`${name} was added to the local employee list.`)
   }
 
+  function confirmAction({ title, message, confirmLabel = "Confirm", tone = "default" }) {
+    return new Promise((resolve) => setConfirmDialog({ title, message, confirmLabel, tone, resolve }))
+  }
+
+  function closeConfirmDialog(confirmed) {
+    confirmDialog?.resolve(confirmed)
+    setConfirmDialog(null)
+  }
+
   async function runAction(successMessage, action) {
     try {
       const actionMessage = await action()
@@ -281,14 +319,21 @@ export default function AdminDashboard() {
     }
   }
 
-  function promptNumberList(message, current = []) {
-    const value = window.prompt(message, current.join(","))
-    if (value === null) return null
-    return value.split(",").map((item) => item.trim()).filter(Boolean).map(Number).filter(Number.isFinite)
+  function isAdminUser(employee) {
+    return employee?.roles?.some((role) => role.toUpperCase() === "ADMIN") ?? false
   }
 
-  function parseNumberList(value) {
-    return value.split(",").map((item) => item.trim()).filter(Boolean).map(Number).filter(Number.isFinite)
+  function isCurrentUser(employee) {
+    if (!employee || !user) return false
+    if (user.id != null && employee.id != null) return String(user.id) === String(employee.id)
+    return Boolean(user.email) && user.email.toLowerCase() === employee.email?.toLowerCase()
+  }
+
+  function demotionBlockReason(employee) {
+    if (!isAdminUser(employee)) return ""
+    if (isCurrentUser(employee)) return "You cannot remove admin rights from your own account."
+    if (isLastActiveAdmin(employee)) return "The last active admin cannot be made a default user."
+    return ""
   }
 
   function createUserAction() {
@@ -296,14 +341,16 @@ export default function AdminDashboard() {
     setEditingUser(null)
     setUserForm(emptyUserForm)
     setUserFormError("")
+    setUserRoleSearch("")
     setShowUserModal(true)
   }
 
   function updateUserAction(employee) {
     setUserModalMode("edit")
     setEditingUser(employee)
-    setUserForm({ name: employee.name || "", email: employee.email || "", phoneNumber: employee.phoneNumber || "", role: employee.roles?.[0] || "USER", customRoleIds: employee.customRoles?.map((role) => role.id).join(",") || "" })
+    setUserForm({ name: employee.name || "", email: employee.email || "", phoneNumber: employee.phoneNumber || "", role: isAdminUser(employee) ? "ADMIN" : "USER", customRoleIds: employee.customRoles?.map((role) => role.id) || [] })
     setUserFormError("")
+    setUserRoleSearch("")
     setShowUserModal(true)
   }
 
@@ -311,13 +358,20 @@ export default function AdminDashboard() {
     setUserForm((current) => ({ ...current, [event.target.name]: event.target.value }))
   }
 
-  function submitUserForm(event) {
+  function toggleUserCustomRole(roleId) {
+    setUserForm((current) => ({
+      ...current,
+      customRoleIds: current.customRoleIds.includes(roleId) ? current.customRoleIds.filter((id) => id !== roleId) : [...current.customRoleIds, roleId],
+    }))
+  }
+
+  async function submitUserForm(event) {
     event.preventDefault()
     const name = userForm.name.trim()
     const email = userForm.email.trim()
     const phoneNumber = userForm.phoneNumber.trim()
     const role = userForm.role.trim().toUpperCase() || "USER"
-    const customRoleIds = parseNumberList(userForm.customRoleIds)
+    const customRoleIds = userForm.customRoleIds
     if (!name || !email) {
       setUserFormError("Name and email are required.")
       return
@@ -326,35 +380,56 @@ export default function AdminDashboard() {
       setUserFormError("System role must be ADMIN or USER.")
       return
     }
-    const successMessage = userModalMode === "create" ? "User created." : "User updated."
+    if (userModalMode === "edit" && role === "USER" && demotionBlockReason(editingUser)) {
+      setUserFormError(demotionBlockReason(editingUser))
+      return
+    }
+    const grantsAdmin = role === "ADMIN" && (userModalMode === "create" || !isAdminUser(editingUser))
+    if (grantsAdmin && !(await confirmAction({ title: "Make this user admin?", message: `Are you sure you wish to make ${name} admin? They will get full access to this dashboard and the Admin Hub.`, confirmLabel: "Make admin", tone: "admin" }))) return
+    const successMessage = userModalMode === "create" ? "User created." : `${name} updated.`
+    setUserSaving(true)
     runAction(successMessage, async () => {
-      let actionMessage = successMessage
-      if (userModalMode === "create") {
-        const result = await createUser({ name, email, roles: [role], customRoleIds })
-        actionMessage = result?.temporaryPassword ? `User created. Temporary password for ${result.user?.email || email}: ${result.temporaryPassword}` : "User created."
-      } else {
-        await updateUser(editingUser.id, { ...editingUser, name, email, phoneNumber })
+      try {
+        let actionMessage = successMessage
+        if (userModalMode === "create") {
+          const result = await createUser({ name, email, roles: [role], customRoleIds })
+          actionMessage = result?.temporaryPassword ? `User created. Temporary password for ${result.user?.email || email}: ${result.temporaryPassword}` : "User created."
+        } else {
+          await updateUser(editingUser.id, { ...editingUser, name, email, phoneNumber, roles: [role], customRoleIds: undefined })
+          const previousRoleIds = editingUser.customRoles?.map((customRole) => customRole.id) || []
+          const rolesChanged = previousRoleIds.length !== customRoleIds.length || customRoleIds.some((id) => !previousRoleIds.includes(id))
+          if (rolesChanged) await updateUserCustomRoles(editingUser.id, customRoleIds)
+        }
+        setShowUserModal(false)
+        setUserForm(emptyUserForm)
+        setEditingUser(null)
+        return actionMessage
+      } catch (error) {
+        setUserFormError(error.message || "Could not save user.")
+        throw error
+      } finally {
+        setUserSaving(false)
       }
-      setShowUserModal(false)
-      setUserForm(emptyUserForm)
-      setEditingUser(null)
-      return actionMessage
     })
   }
 
-  function updateUserRolesAction(employee) {
-    const customRoleIds = promptNumberList("Company role IDs, comma separated", employee.customRoles?.map((role) => role.id) || [])
-    if (customRoleIds === null) return
-    runAction("User company roles updated.", () => updateUserCustomRoles(employee.id, customRoleIds))
+  function toggleEditingUserActivation() {
+    setShowUserModal(false)
+    toggleUserAction(editingUser)
   }
 
-  function toggleUserAction(employee) {
+  async function toggleUserAction(employee) {
     if (isLastActiveAdmin(employee)) {
       setNotice("The last active admin cannot be deactivated.")
       return
     }
-    const action = employee.isActive === false ? "activate" : "deactivate"
-    if (!window.confirm(`This will ${action} ${employee.email}. Continue?`)) return
+    const reactivating = employee.isActive === false
+    const action = reactivating ? "activate" : "deactivate"
+    const userLabel = employee.name || employee.email
+    const confirmed = await confirmAction(reactivating
+      ? { title: "Reactivate user?", message: `${userLabel} will be able to sign in again.`, confirmLabel: "Reactivate" }
+      : { title: "Deactivate user?", message: `${userLabel} will no longer be able to sign in. Their history is kept and you can reactivate them later.`, confirmLabel: "Deactivate", tone: "danger" })
+    if (!confirmed) return
     runAction(`User ${action}d.`, () => toggleUserActivation(employee.id))
   }
 
@@ -363,13 +438,43 @@ export default function AdminDashboard() {
   }
 
   function createRoleAction() {
-    const roleName = window.prompt("Role name")?.trim()
-    if (!roleName) return
-    runAction("Role created.", () => createRole(roleName))
+    setRoleName("")
+    setRoleFormError("")
+    setShowRoleModal(true)
   }
 
-  function deleteRoleAction(role) {
-    if (!window.confirm(`Delete role ${role.roleName}?`)) return
+  function submitRoleForm(event) {
+    event.preventDefault()
+    const name = roleName.trim()
+    if (!name) {
+      setRoleFormError("Role name is required.")
+      return
+    }
+    if (name.length > 255) {
+      setRoleFormError("Role name must be at most 255 characters.")
+      return
+    }
+    if (backendRoles.some((role) => role.roleName?.toLowerCase() === name.toLowerCase())) {
+      setRoleFormError("A role with this name already exists.")
+      return
+    }
+    setRoleSaving(true)
+    runAction(`Role "${name}" created.`, async () => {
+      try {
+        await createRole(name)
+        setShowRoleModal(false)
+        setRoleName("")
+      } catch (error) {
+        setRoleFormError(error.message || "Could not create role.")
+        throw error
+      } finally {
+        setRoleSaving(false)
+      }
+    })
+  }
+
+  async function deleteRoleAction(role) {
+    if (!(await confirmAction({ title: "Delete role?", message: `"${role.roleName}" will be deleted and removed from every user who has it.`, confirmLabel: "Delete role", tone: "danger" }))) return
     runAction("Role deleted.", () => deleteRole(role.id))
   }
 
@@ -483,8 +588,8 @@ export default function AdminDashboard() {
     runAction(active ? "Assignment deactivated." : "Assignment activated.", () => active ? deactivateAssignment(assignment.id) : activateAssignment(assignment.id))
   }
 
-  function deleteAssignmentAction(assignment) {
-    if (!window.confirm(`Permanently delete ${assignment.name}? If it is in use, SUPAVISOR will refuse and you should deactivate it instead.`)) return
+  async function deleteAssignmentAction(assignment) {
+    if (!(await confirmAction({ title: "Delete assignment?", message: `"${assignment.name}" will be permanently deleted. If it is in use, SUPAVISOR will refuse and you should deactivate it instead.`, confirmLabel: "Delete assignment", tone: "danger" }))) return
     runAction("Assignment deleted.", () => deleteAssignment(assignment.id))
   }
 
@@ -547,8 +652,8 @@ export default function AdminDashboard() {
     })
   }
 
-  function deleteProjectAction(project) {
-    if (!window.confirm(`Delete project ${project.name}?`)) return
+  async function deleteProjectAction(project) {
+    if (!(await confirmAction({ title: "Delete project?", message: `"${project.name}" will be permanently deleted.`, confirmLabel: "Delete project", tone: "danger" }))) return
     runAction("Project deleted.", () => deleteProject(project.id))
   }
 
@@ -682,7 +787,7 @@ export default function AdminDashboard() {
               return <article key={employee.id} className="admin-employee-row"><span className="admin-employee-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><div><strong>{displayName}</strong><span>{employee.email}</span><span>{employee.phoneNumber || "No phone number"}</span></div><span className="admin-employee-team">{workRoles.join(" · ") || "No company roles"}</span><span className="admin-employee-role">{systemRoles.join(" · ") || "USER"}</span></article>
             })}</div>}
           </div>}
-          {adminHubTab === "Roles & Permissions" && <div className="admin-hub-card"><h3>Roles &amp; Permissions</h3><p>System permissions remain controlled by backend account roles. Company roles are loaded from SUPAVISOR.</p><div className="admin-role-info"><strong>ADMIN</strong><span>Full access to the Admin dashboard and Admin Hub.</span></div><div className="admin-role-info"><strong>USER / EMPLOYEE</strong><span>Employee workspace access only.</span></div>{backendRoles.map((role) => <div className="admin-role-info" key={role.id}><strong>{role.roleName}</strong><span>Company role for tenant {role.tenantId}.</span></div>)}</div>}
+          {adminHubTab === "Roles & Permissions" && <div className="admin-hub-card"><h3>Roles &amp; Permissions</h3><p>System permissions remain controlled by backend account roles. Company roles are loaded from SUPAVISOR.</p><div className="admin-role-info"><strong>ADMIN</strong><span>Full access to the Admin dashboard and Admin Hub.</span></div><div className="admin-role-info"><strong>USER / EMPLOYEE</strong><span>Employee workspace access only.</span></div>{backendRoles.map((role) => <div className="admin-role-info" key={role.id}><strong>{role.roleName}</strong><span>Company role.</span></div>)}</div>}
           {adminHubTab === "Locations & Venues" && <div className="admin-hub-card"><h3>Locations &amp; Venues</h3><p>Location management will appear when location APIs are available.</p><div className="admin-hub-empty"><MapPin size={24} /><p>No location data is available from the backend yet.</p></div></div>}
           {adminHubTab === "Appearance" && <div className="admin-hub-appearance">{renderSettings()}</div>}
         </div>
@@ -698,18 +803,65 @@ export default function AdminDashboard() {
 
     if (activePage === "Users") {
       const users = backendEmployees.filter((employee) => matchesSearch(employee.name, employee.email, employee.phoneNumber, employee.roles?.join(" "), employee.customRoles?.map((role) => role.roleName).join(" ")))
-      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Users</h3><p>Manage company users. Users are deactivated/reactivated instead of removed.</p></div><button type="button" className="admin-control-primary" onClick={createUserAction}><Plus size={15} /> Create user</button></div>{users.length === 0 ? <div className="admin-hub-empty"><Users size={24} /><p>No users match the current search.</p></div> : <div className="admin-employee-list">{users.map((employee) => {
-        const displayName = employee.name || employee.email || `User ${employee.id}`
+      const userInitials = (displayName) => displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()
+      const userViews = [["byRole", "By role"], ["all", "All users"]]
+      // A user with several company roles appears in each of their lanes; users without one get their own lane.
+      const roleLanes = [
+        ...backendRoles.map((role) => ({ key: role.id, title: role.roleName, users: users.filter((employee) => employee.customRoles?.some((customRole) => customRole.id === role.id)) })),
+        { key: "none", title: "No company role", users: users.filter((employee) => !employee.customRoles?.length) },
+      ]
+
+      function renderUserSettingsButton(employee, displayName) {
+        return <button type="button" className="admin-user-settings" onClick={() => updateUserAction(employee)} aria-label={`Edit ${displayName}`} title="Edit user"><Settings size={16} /></button>
+      }
+
+      function renderUserRow(employee) {
+        const displayName = employee.name || employee.email || "Unnamed user"
         const systemRoles = Array.isArray(employee.roles) ? employee.roles : []
         const companyRoles = employee.customRoles?.map((role) => role.roleName).filter(Boolean) || []
         const lastActiveAdmin = isLastActiveAdmin(employee)
-        return <article key={employee.id} className="admin-employee-row"><span className="admin-employee-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><div><strong>{displayName}</strong><span>{employee.email}</span><span>{employee.phoneNumber || "No phone number"}</span><div className="admin-modal-actions"><button type="button" onClick={() => updateUserAction(employee)}>Edit</button><button type="button" onClick={() => updateUserRolesAction(employee)}>Roles</button><button type="button" onClick={() => toggleUserAction(employee)} disabled={lastActiveAdmin} title={lastActiveAdmin ? "The last active admin cannot be deactivated" : undefined}>{employee.isActive === false ? "Reactivate" : "Deactivate"}</button></div>{lastActiveAdmin && <span>The last active admin cannot be deactivated.</span>}</div><span className="admin-employee-team">{companyRoles.join(" · ") || "No company roles"}</span><span className="admin-employee-role">{systemRoles.join(" · ") || "USER"} · {employee.isActive === false ? "Inactive" : "Active"}</span></article>
-      })}</div>}</section>
+        const inactive = employee.isActive === false
+        return <article key={employee.id} className={`admin-employee-row admin-entity-row admin-user-row${inactive ? " is-inactive" : ""}`}>
+          <span className="admin-employee-avatar">{userInitials(displayName)}</span>
+          <div><strong>{displayName}</strong><span>{employee.email}</span><span>{employee.phoneNumber || "No phone number"}</span>{lastActiveAdmin && <span>Last active admin – cannot be deactivated</span>}</div>
+          <span className="admin-chip-list">{companyRoles.length === 0 ? <span className="admin-chip is-empty">No company roles</span> : companyRoles.map((roleName) => <span className="admin-chip" key={roleName}>{roleName}</span>)}</span>
+          <span className="admin-employee-role">{systemRoles.join(" · ") || "USER"}{inactive ? " · Inactive" : ""}</span>
+          {renderUserSettingsButton(employee, displayName)}
+        </article>
+      }
+
+      function renderUserCard(employee) {
+        const displayName = employee.name || employee.email || "Unnamed user"
+        const systemRoles = Array.isArray(employee.roles) ? employee.roles : []
+        const inactive = employee.isActive === false
+        return <article key={employee.id} className={`admin-project-card admin-user-card${inactive ? " is-inactive" : ""}`}>
+          <div className="admin-user-card-identity"><span className="admin-employee-avatar">{userInitials(displayName)}</span><div><strong>{displayName}</strong><small>{employee.email}</small></div></div>
+          <span className="admin-user-card-meta">{systemRoles.join(" · ") || "USER"}{inactive ? " · Inactive" : ""}</span>
+          {renderUserSettingsButton(employee, displayName)}
+        </article>
+      }
+
+      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Users</h3><p>Manage company users. Users are deactivated/reactivated instead of removed.</p></div><button type="button" className="admin-control-primary" onClick={createUserAction}><Plus size={15} /> Create user</button></div>
+        <div className="admin-tabs admin-view-tabs" role="tablist" aria-label="User view">{userViews.map(([view, label]) => <button type="button" role="tab" key={view} aria-selected={usersView === view} className={usersView === view ? "is-active" : ""} onClick={() => setUsersView(view)}>{label}</button>)}</div>
+        {users.length === 0 ? <div className="admin-hub-empty"><Users size={24} /><p>{backendEmployees.length === 0 ? "No users yet. Create one to get started." : "No users match the current search."}</p></div>
+          : usersView === "all" ? <div className="admin-employee-list">{users.map(renderUserRow)}</div>
+          : <div className="admin-role-lanes">{roleLanes.map((lane) => <section className="admin-role-lane" key={lane.key} aria-labelledby={`role-lane-${lane.key}`}>
+            <div className="admin-role-lane-heading"><h4 id={`role-lane-${lane.key}`} title={lane.title}>{lane.title}</h4><span>{lane.users.length === 1 ? "1 user" : `${lane.users.length} users`}</span></div>
+            <div className="admin-role-lane-cards">{lane.users.length === 0 ? <p className="admin-role-lane-empty">No users</p> : lane.users.map(renderUserCard)}</div>
+          </section>)}</div>}
+      </section>
     }
 
     if (activePage === "Roles") {
-      const roles = backendRoles.filter((role) => matchesSearch(role.roleName, role.id, role.tenantId))
-      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Roles</h3><p>Manage company roles and permissions.</p></div><button type="button" className="admin-control-primary" onClick={createRoleAction}><Plus size={15} /> Create role</button></div>{roles.length === 0 ? <div className="admin-hub-empty"><ShieldCheck size={24} /><p>No roles match the current search.</p></div> : roles.map((role) => <div className="admin-role-info" key={role.id}><strong>{role.roleName}</strong><span>ID {role.id} · tenant {role.tenantId}</span><button type="button" onClick={() => deleteRoleAction(role)}>Delete</button></div>)}</section>
+      const roles = backendRoles.filter((role) => matchesSearch(role.roleName))
+      return <section className="admin-hub-card"><div className="admin-hub-card-heading"><div><h3>Roles</h3><p>Company roles that can be assigned to users.</p></div><button type="button" className="admin-control-primary" onClick={createRoleAction}><Plus size={15} /> Create role</button></div>{roles.length === 0 ? <div className="admin-hub-empty"><ShieldCheck size={24} /><p>{backendRoles.length === 0 ? "No company roles yet. Create one to start assigning it to users." : "No roles match the current search."}</p></div> : <div className="admin-employee-list">{roles.map((role) => {
+        const memberCount = backendEmployees.filter((employee) => employee.customRoles?.some((customRole) => customRole.id === role.id)).length
+        return <article className="admin-employee-row admin-entity-row" key={role.id}>
+          <span className="admin-employee-avatar"><ShieldCheck size={16} /></span>
+          <div><strong>{role.roleName}</strong><span>{memberCount === 1 ? "1 user" : `${memberCount} users`}</span></div>
+          <div className="admin-row-actions"><button type="button" className="is-danger" onClick={() => deleteRoleAction(role)}>Delete</button></div>
+        </article>
+      })}</div>}</section>
     }
 
     if (activePage === "Assignments") {
@@ -750,7 +902,7 @@ export default function AdminDashboard() {
       <header className="admin-header"><div className="admin-header-title"><h1>{activePage === "Overview" ? "Overview" : activePage}</h1><p>{formattedDate} · {greeting}</p></div><div className="admin-header-actions">{activePage !== "Overview" && activePage !== "Admin Hub" && <div className="admin-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search anything..." aria-label="Search assignment or staff" /></div>}<span className="admin-user-avatar" aria-label={adminIdentity}>{adminIdentity.slice(0, 2).toUpperCase()}</span><span className="admin-user-name" title={adminIdentity}>{adminHeaderName}</span><button className="admin-header-icon" onClick={() => setShowNotifications(true)} aria-label="Notifications"><Bell size={17} /></button><button className="admin-header-icon admin-settings-button" onClick={() => selectPage("Admin Hub")} aria-label="Open settings"><Settings size={17} /></button></div></header>
       <div className="admin-content">
         <div className="admin-content-heading"><div><h1>{activePage === "Overview" ? "Today, Tuesday 16 September" : activePage}</h1><p>{activePage === "Overview" ? "Week 38" : "Workspace tools and operational controls"}</p></div>{activePage === "Overview" && <span className="admin-week-badge">Week 38</span>}</div>
-        {(notice || backendData.error || backendData.loading) && <div className="admin-notice" role="status">{backendData.loading ? "Loading live SUPAVISOR data..." : backendData.error || notice}</div>}
+        {(notice || backendData.error || backendData.loading) && <div className="admin-notice" role="status">{backendData.loading ? "Loading live SUPAVISOR data..." : <>{notice && <p>{notice}</p>}{backendData.error && <p>{backendData.error}</p>}</>}</div>}
         {activePage === "Admin Hub" ? renderAdminHub() : activePage === "Settings" ? renderAdminHub() : activePage === "Overview" ? <>
           <section className="admin-calendar-workspace" aria-label="Project assignment calendar">
             <div className="admin-calendar-panel">
@@ -782,15 +934,65 @@ export default function AdminDashboard() {
         <div className="admin-modal-actions"><button type="button" onClick={() => setShowAddEmployee(false)}>Cancel</button><button className="admin-control-primary" type="submit"><Plus size={15} /> Add employee</button></div>
       </form>
     </section></div>}
-    {showUserModal && <div className="admin-modal-overlay" onClick={() => setShowUserModal(false)}><section className="admin-employee-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title" onClick={(event) => event.stopPropagation()}>
-      <div className="admin-modal-heading"><div><p className="admin-eyebrow">Users</p><h2 id="user-modal-title">{userModalMode === "create" ? "Create user" : "Edit user"}</h2><p>{userModalMode === "create" ? "Create a tenant user without browser prompts." : "Update user details without browser prompts."}</p></div><button type="button" onClick={() => setShowUserModal(false)} aria-label="Close user form"><X size={18} /></button></div>
+    {showUserModal && <div className="admin-modal-overlay" onClick={() => setShowUserModal(false)}><section className={`admin-employee-modal${userModalMode === "edit" ? " admin-assignment-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="user-modal-title" onClick={(event) => event.stopPropagation()}>
+      <div className="admin-modal-heading"><div><p className="admin-eyebrow">Users</p><h2 id="user-modal-title">{userModalMode === "create" ? "Create user" : `Edit ${editingUser?.name || editingUser?.email || "user"}`}</h2><p>{userModalMode === "create" ? "Create a tenant user without browser prompts." : "Update details, access level and company roles."}</p></div><button type="button" onClick={() => setShowUserModal(false)} aria-label="Close user form"><X size={18} /></button></div>
       <form className="admin-employee-form" onSubmit={submitUserForm}>
-        <label><span>Name</span><input name="name" value={userForm.name} onChange={updateUserForm} placeholder="Anna Jensen" autoFocus required /></label>
-        <label><span>Email</span><input name="email" type="email" value={userForm.email} onChange={updateUserForm} placeholder="anna@example.com" required /></label>
-        {userModalMode === "edit" && <label><span>Phone number</span><input name="phoneNumber" type="tel" value={userForm.phoneNumber} onChange={updateUserForm} placeholder="+45 12 34 56 78" /></label>}
-        {userModalMode === "create" && <><label><span>System role</span><select name="role" value={userForm.role} onChange={updateUserForm}><option value="USER">USER</option><option value="ADMIN">ADMIN</option></select></label><label><span>Company role IDs</span><input name="customRoleIds" value={userForm.customRoleIds} onChange={updateUserForm} placeholder="1,2,3" /></label></>}
+        {userModalMode === "edit" ? <div className="admin-assignment-form-grid">
+          <label><span>Name</span><input name="name" value={userForm.name} onChange={updateUserForm} placeholder="Anna Jensen" autoFocus required /></label>
+          <label><span>Email</span><input name="email" type="email" value={userForm.email} onChange={updateUserForm} placeholder="anna@example.com" required /></label>
+          <label><span>Phone number</span><input name="phoneNumber" type="tel" value={userForm.phoneNumber} onChange={updateUserForm} placeholder="+45 12 34 56 78" /></label>
+        </div> : <>
+          <label><span>Name</span><input name="name" value={userForm.name} onChange={updateUserForm} placeholder="Anna Jensen" autoFocus required /></label>
+          <label><span>Email</span><input name="email" type="email" value={userForm.email} onChange={updateUserForm} placeholder="anna@example.com" required /></label>
+        </>}
+        {(() => {
+          const blockReason = userModalMode === "edit" ? demotionBlockReason(editingUser) : ""
+          const accessOptions = [
+            ["USER", "Default user", "Employee workspace only."],
+            ["ADMIN", "Admin", "Full access to this dashboard and Admin Hub."],
+          ]
+          return <fieldset className="admin-access-fieldset"><legend>Access level</legend>
+            <div className="admin-access-options">{accessOptions.map(([value, label, description]) => {
+              const selected = userForm.role === value
+              const disabled = value === "USER" && Boolean(blockReason)
+              return <label className={`admin-project-assignment-option${selected ? " is-selected" : ""}${disabled ? " is-disabled" : ""}`} key={value} title={disabled ? blockReason : undefined}><input type="radio" name="role" value={value} checked={selected} disabled={disabled} onChange={updateUserForm} /><span><strong>{label}</strong><small>{description}</small></span></label>
+            })}</div>
+            {blockReason && <p className="admin-access-hint">{blockReason}</p>}
+          </fieldset>
+        })()}
+        <section className="admin-project-assignment-picker" aria-labelledby="user-roles-title">
+          <div><h3 id="user-roles-title">Company roles</h3><p>{userForm.customRoleIds.length === 0 ? "Select the custom roles this user should have." : `${userForm.customRoleIds.length} selected`}</p></div>
+          {backendData.loading && backendRoles.length === 0 ? <div className="admin-assignment-empty">Loading company roles…</div> : backendData.failedSources.includes("roles") ? <div className="admin-assignment-empty" role="alert">Company roles could not be loaded. Check the connection to SUPAVISOR and try again.</div> : backendRoles.length === 0 ? <div className="admin-assignment-empty">No custom roles exist for this company yet. Create them on the Roles page.</div> : <>
+            <input type="search" value={userRoleSearch} onChange={(event) => setUserRoleSearch(event.target.value)} placeholder="Search roles" aria-label="Search company roles" />
+            {(() => {
+              const roleQuery = userRoleSearch.trim().toLowerCase()
+              const matchingRoles = backendRoles.filter((role) => (role.roleName || "").toLowerCase().includes(roleQuery))
+              if (matchingRoles.length === 0) return <div className="admin-assignment-empty">No roles match "{userRoleSearch.trim()}".</div>
+              return <div className="admin-project-assignment-list">{matchingRoles.map((role) => {
+                const selected = userForm.customRoleIds.includes(role.id)
+                return <label className={`admin-project-assignment-option${selected ? " is-selected" : ""}`} key={role.id}><input type="checkbox" checked={selected} onChange={() => toggleUserCustomRole(role.id)} /><span><strong>{role.roleName || `Role ${role.id}`}</strong></span></label>
+              })}</div>
+            })()}
+          </>}
+        </section>
+        {userModalMode === "edit" && editingUser && (() => {
+          const inactive = editingUser.isActive === false
+          const blocked = !inactive && (isLastActiveAdmin(editingUser) || isCurrentUser(editingUser))
+          return <section className="admin-account-status">
+            <div><h3>Account status</h3><p>{inactive ? "This account is deactivated and cannot sign in." : blocked ? (isCurrentUser(editingUser) ? "You cannot deactivate your own account." : "The last active admin cannot be deactivated.") : "Deactivated users keep their history but cannot sign in."}</p></div>
+            <div className="admin-row-actions"><button type="button" className={inactive ? "" : "is-danger"} onClick={toggleEditingUserActivation} disabled={blocked}>{inactive ? "Reactivate user" : "Deactivate user"}</button></div>
+          </section>
+        })()}
         {userFormError && <span className="admin-form-error" role="alert">{userFormError}</span>}
-        <div className="admin-modal-actions"><button type="button" onClick={() => setShowUserModal(false)}>Cancel</button><button className="admin-control-primary" type="submit"><Plus size={15} /> {userModalMode === "create" ? "Create user" : "Save user"}</button></div>
+        <div className="admin-modal-actions"><button type="button" onClick={() => setShowUserModal(false)}>Cancel</button><button className="admin-control-primary" type="submit" disabled={userSaving}>{userModalMode === "create" ? <><Plus size={15} /> Create user</> : userSaving ? "Saving…" : "Save changes"}</button></div>
+      </form>
+    </section></div>}
+    {showRoleModal && <div className="admin-modal-overlay" onClick={() => setShowRoleModal(false)}><section className="admin-employee-modal" role="dialog" aria-modal="true" aria-labelledby="role-modal-title" onClick={(event) => event.stopPropagation()}>
+      <div className="admin-modal-heading"><div><p className="admin-eyebrow">Roles</p><h2 id="role-modal-title">Create role</h2><p>Add a custom company role that can be assigned to users.</p></div><button type="button" onClick={() => setShowRoleModal(false)} aria-label="Close role form"><X size={18} /></button></div>
+      <form className="admin-employee-form" onSubmit={submitRoleForm}>
+        <label><span>Role name</span><input name="roleName" value={roleName} onChange={(event) => { setRoleName(event.target.value); setRoleFormError("") }} placeholder="Kitchen" maxLength={255} autoFocus required /></label>
+        {roleFormError && <span className="admin-form-error" role="alert">{roleFormError}</span>}
+        <div className="admin-modal-actions"><button type="button" onClick={() => setShowRoleModal(false)}>Cancel</button><button className="admin-control-primary" type="submit" disabled={roleSaving}><Plus size={15} /> {roleSaving ? "Creating…" : "Create role"}</button></div>
       </form>
     </section></div>}
     {showProjectModal && <div className="admin-modal-overlay" onClick={() => setShowProjectModal(false)}><section className="admin-employee-modal admin-assignment-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title" onClick={(event) => event.stopPropagation()}>
@@ -830,6 +1032,12 @@ export default function AdminDashboard() {
         {assignmentFormError && <span className="admin-form-error" role="alert">{assignmentFormError}</span>}
         <div className="admin-modal-actions"><button type="button" onClick={() => setShowAssignmentModal(false)}>Cancel</button><button className="admin-control-primary" type="submit"><Plus size={15} /> {assignmentModalMode === "create" ? "Create assignment" : "Save assignment"}</button></div>
       </form>
+    </section></div>}
+    {confirmDialog && <div className="admin-modal-overlay admin-confirm-overlay" onClick={() => closeConfirmDialog(false)}><section className={`admin-employee-modal admin-confirm-dialog is-${confirmDialog.tone}`} role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onClick={(event) => event.stopPropagation()}>
+      <span className="admin-confirm-icon" aria-hidden="true">{confirmDialog.tone === "danger" ? <TriangleAlert size={22} /> : <ShieldCheck size={22} />}</span>
+      <h2 id="confirm-dialog-title">{confirmDialog.title}</h2>
+      <p id="confirm-dialog-message">{confirmDialog.message}</p>
+      <div className="admin-modal-actions"><button type="button" onClick={() => closeConfirmDialog(false)} autoFocus>Cancel</button><button type="button" className="admin-control-primary admin-confirm-button" onClick={() => closeConfirmDialog(true)}>{confirmDialog.confirmLabel}</button></div>
     </section></div>}
   </div>
 }

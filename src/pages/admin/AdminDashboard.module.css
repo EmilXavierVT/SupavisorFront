@@ -195,6 +195,69 @@
 .shell :global(.admin-employee-row > div strong), .shell :global(.admin-employee-row > div span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shell :global(.admin-employee-row > div span) { color: var(--admin-subtle); font-size: 12px; }
 .shell :global(.admin-employee-team), .shell :global(.admin-employee-role) { padding: 4px 8px; border: 1px solid var(--admin-border); border-radius: 999px; color: var(--admin-subtle); background: var(--admin-card); font-size: 11px; white-space: nowrap; }
+/* Entity list rows (Users, Roles): avatar, details, pills, compact actions. */
+.shell :global(.admin-employee-row.admin-entity-row) { grid-template-columns: 40px minmax(0, 1fr) auto; background: var(--admin-card); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.shell :global(.admin-employee-row.admin-entity-row:hover) { border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border)); box-shadow: 0 1px 2px rgb(0 0 0 / 4%); }
+.shell :global(.admin-employee-row.admin-user-row) { grid-template-columns: 40px minmax(0, 1fr) auto auto auto; }
+.shell :global(.admin-user-row.is-inactive > :not(.admin-user-settings)) { opacity: 0.55; }
+.shell :global(.admin-entity-row .admin-employee-avatar) { color: var(--admin-subtle); background: var(--admin-bg); }
+.shell :global(.admin-entity-row > div strong) { font-size: 14px; font-weight: 600; }
+.shell :global(.admin-employee-row > .admin-row-actions) { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.shell :global(.admin-row-actions button) { display: inline-flex; min-height: 32px; align-items: center; padding: 0 10px; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-text); background: var(--admin-card); font-size: 12px; font-weight: 500; white-space: nowrap; transition: border-color 160ms ease, background 160ms ease, color 160ms ease; }
+.shell :global(.admin-row-actions button:hover:not(:disabled)) { border-color: var(--admin-primary); background: var(--admin-bg); }
+.shell :global(.admin-row-actions button.is-danger:hover:not(:disabled)) { border-color: color-mix(in srgb, var(--admin-danger) 45%, var(--admin-border)); color: var(--admin-danger); }
+.shell :global(.admin-row-actions button:disabled) { cursor: not-allowed; opacity: 0.45; }
+.shell :global(.admin-chip-list) { display: flex; max-width: 280px; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.shell :global(.admin-chip) { padding: 3px 8px; border: 1px solid var(--admin-border); border-radius: 999px; color: var(--admin-text); background: var(--admin-bg); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.shell :global(.admin-chip.is-empty) { border-style: dashed; color: var(--admin-subtle); background: transparent; }
+/* Users page: view tabs and the by-role swimlane board. */
+.shell :global(.admin-view-tabs) { max-width: 280px; margin: 20px 0 0; }
+.shell :global(.admin-role-lanes) { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; }
+.shell :global(.admin-role-lane) { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; align-items: start; padding: 12px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-bg); }
+.shell :global(.admin-role-lane-heading) { display: flex; min-width: 0; flex-direction: column; gap: 6px; padding: 6px 12px 6px 4px; border-right: 1px solid var(--admin-border); }
+.shell :global(.admin-role-lane-heading h4) { margin: 0; overflow: hidden; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.shell :global(.admin-role-lane-heading span) { align-self: flex-start; padding: 2px 8px; border-radius: 999px; color: var(--admin-subtle); background: var(--admin-card); font-size: 11px; font-weight: 600; }
+.shell :global(.admin-role-lane-cards) { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.shell :global(.admin-role-lane-empty) { grid-column: 1 / -1; display: grid; min-height: 64px; place-items: center; margin: 0; border: 1px dashed var(--admin-border); border-radius: 10px; color: var(--admin-subtle); background: var(--admin-card); font-size: 12px; }
+.shell :global(.admin-user-card) { gap: 10px; transition: border-color 160ms ease; }
+.shell :global(.admin-user-card:hover) { border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border)); }
+.shell :global(.admin-user-card.is-inactive > :not(.admin-user-settings)) { opacity: 0.55; }
+.shell :global(.admin-user-card-identity) { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.shell :global(.admin-user-card-identity > div) { display: flex; min-width: 0; flex-direction: column; gap: 1px; }
+.shell :global(.admin-user-card-identity strong), .shell :global(.admin-user-card-identity small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell :global(.admin-user-card .admin-employee-avatar) { width: 32px; height: 32px; flex: 0 0 32px; color: var(--admin-text); font-size: 10px; }
+.shell :global(.admin-user-card .admin-user-card-meta) { font-size: 11px; }
+/* Settings wheel that opens the edit-user overlay. */
+.shell :global(.admin-user-settings) { display: inline-flex; width: 32px; height: 32px; flex: 0 0 32px; align-items: center; justify-content: center; padding: 0; border: 1px solid transparent; border-radius: 8px; color: var(--admin-subtle); background: transparent; transition: border-color 160ms ease, background 160ms ease, color 160ms ease; }
+.shell :global(.admin-user-settings svg) { transition: transform 240ms ease; }
+.shell :global(.admin-user-settings:hover) { border-color: var(--admin-border); color: var(--admin-text); background: var(--admin-bg); }
+.shell :global(.admin-user-settings:hover svg) { transform: rotate(45deg); }
+.shell :global(.admin-user-card) { position: relative; }
+.shell :global(.admin-user-card > .admin-user-settings) { position: absolute; top: 8px; right: 8px; }
+.shell :global(.admin-user-card .admin-user-card-identity) { padding-right: 32px; }
+
+/* Edit-user overlay. */
+.shell :global(.admin-employee-form .admin-project-assignment-option > span) { color: inherit; font-size: inherit; font-weight: inherit; letter-spacing: 0; text-transform: none; }
+.shell :global(.admin-project-assignment-option.is-disabled) { cursor: not-allowed; opacity: 0.5; }
+.shell :global(.admin-access-fieldset) { min-width: 0; margin: 0; padding: 0; border: 0; }
+.shell :global(.admin-access-fieldset legend) { margin-bottom: 6px; padding: 0; color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.shell :global(.admin-access-options) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.shell :global(.admin-access-hint) { margin-top: 8px; color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-account-status) { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-bg); }
+.shell :global(.admin-account-status h3) { font-size: 15px; }
+.shell :global(.admin-account-status p) { margin-top: 3px; color: var(--admin-subtle); font-size: 12px; }
+.shell :global(.admin-account-status .admin-row-actions) { display: flex; flex: 0 0 auto; }
+/* Confirmation dialog (replaces window.confirm). */
+.shell :global(.admin-confirm-overlay) { z-index: 230; }
+.shell :global(.admin-confirm-dialog) { width: min(420px, 100%); padding: 28px 24px 24px; text-align: center; animation: adminConfirmIn 160ms ease-out; }
+.shell :global(.admin-confirm-icon) { display: inline-grid; width: 48px; height: 48px; place-items: center; margin-bottom: 14px; border-radius: 50%; color: var(--admin-primary); background: color-mix(in srgb, var(--admin-primary) 10%, var(--admin-card)); }
+.shell :global(.admin-confirm-dialog.is-danger .admin-confirm-icon) { color: var(--admin-danger); background: color-mix(in srgb, var(--admin-danger) 12%, var(--admin-card)); }
+.shell :global(.admin-confirm-dialog h2) { font-size: 19px; font-weight: 600; }
+.shell :global(.admin-confirm-dialog p) { max-width: 340px; margin: 8px auto 0; color: var(--admin-subtle); font-size: 13px; line-height: 1.5; }
+.shell :global(.admin-confirm-dialog .admin-modal-actions) { display: grid; grid-template-columns: 1fr 1fr; margin-top: 22px; padding-top: 0; }
+.shell :global(.admin-confirm-dialog.is-danger .admin-confirm-button) { border-color: var(--admin-danger); color: #ffffff; background: var(--admin-danger); }
+.shell :global(.admin-confirm-dialog.is-danger .admin-confirm-button:hover) { color: #ffffff; background: color-mix(in srgb, var(--admin-danger) 85%, #000000); }
+@keyframes adminConfirmIn { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
 .shell :global(.admin-role-info) { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; margin-top: 16px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 9px; background: var(--admin-bg); }
 .shell :global(.admin-role-info strong) { font-size: 12px; }
 .shell :global(.admin-role-info span) { color: var(--admin-subtle); font-size: 13px; }
@@ -366,6 +429,35 @@
   .shell :global(.admin-modal-actions button) { width: 100%; }
 }
 
+/* Entity rows: placed after the generic breakpoints so they win over .admin-employee-row rules. */
+@media (max-width: 900px) {
+  .shell :global(.admin-employee-row.admin-user-row) { grid-template-columns: 40px minmax(0, 1fr) auto auto; align-items: start; }
+  .shell :global(.admin-user-row .admin-employee-role) { grid-row: 1; grid-column: 3; }
+  .shell :global(.admin-user-row > .admin-user-settings) { grid-row: 1; grid-column: 4; }
+  .shell :global(.admin-user-row .admin-chip-list) { grid-row: 2; grid-column: 2 / -1; max-width: none; justify-content: flex-start; }
+  .shell :global(.admin-role-lane) { grid-template-columns: 1fr; gap: 10px; }
+  .shell :global(.admin-role-lane-heading) { flex-direction: row; align-items: center; justify-content: space-between; padding: 2px 4px 10px; border-right: 0; border-bottom: 1px solid var(--admin-border); }
+}
+
+@media (max-width: 767px) {
+  .shell :global(.admin-row-actions button) { min-height: 40px; padding: 0 12px; }
+  .shell :global(.admin-user-settings) { width: 40px; height: 40px; flex-basis: 40px; }
+  .shell :global(.admin-user-card .admin-user-card-identity) { padding-right: 40px; }
+  .shell :global(.admin-user-card > .admin-user-settings) { top: 4px; right: 4px; }
+}
+
+@media (max-width: 420px) {
+  .shell :global(.admin-employee-row.admin-entity-row) { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .shell :global(.admin-employee-row.admin-user-row) { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .shell :global(.admin-user-row > .admin-user-settings) { grid-column: 3; }
+  .shell :global(.admin-view-tabs) { max-width: none; }
+  .shell :global(.admin-role-lane-cards) { grid-template-columns: 1fr; }
+  .shell :global(.admin-access-options) { grid-template-columns: 1fr; }
+  .shell :global(.admin-account-status) { flex-direction: column; align-items: stretch; }
+  .shell :global(.admin-account-status .admin-row-actions button) { width: 100%; justify-content: center; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shell, .shell *, .shell *::before, .shell *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+  .shell :global(.admin-confirm-dialog) { animation: none; }
 }
