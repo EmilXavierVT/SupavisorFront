@@ -117,6 +117,26 @@ export function deleteRole(id) {
   return fetchFromServer(`/role/${encodeURIComponent(id)}`, { method: "DELETE" })
 }
 
+export function getQualifications(options = {}) {
+  return fetchFromServer("/qualification/all", options)
+}
+
+export function createQualification(name) {
+  return fetchFromServer("/qualification/", { method: "POST", body: { name } })
+}
+
+export function updateQualification(id, name) {
+  return fetchFromServer(`/qualification/${encodeURIComponent(id)}`, { method: "PUT", body: { name } })
+}
+
+export function deleteQualification(id) {
+  return fetchFromServer(`/qualification/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
+export function updateUserQualifications(id, qualificationIds) {
+  return fetchFromServer(`/user/${encodeURIComponent(id)}/qualifications`, { method: "PUT", body: { qualificationIds } })
+}
+
 export function getAssignments(options = {}) {
   const { activeOnly = false, ...requestOptions } = options
   return fetchFromServer(`/assignment/all${activeOnly ? "?activeOnly=true" : ""}`, requestOptions)
