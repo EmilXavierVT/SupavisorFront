@@ -125,7 +125,6 @@ export default function AdminDashboard() {
 
       setBackendData((current) => ({ ...current, loading: true, error: "" }))
       const options = { signal: controller.signal }
-      // Each source loads independently so one failing endpoint (e.g. e-conomic without credentials) does not blank the others.
       const sources = [
         ["employees", "Users", () => getUsersByTenant(user.tenantId, options)],
         ["roles", "Roles", () => getRolesByTenant(user.tenantId, options)],
@@ -393,7 +392,6 @@ export default function AdminDashboard() {
           const result = await createUser({ name, email, roles: [role], customRoleIds })
           actionMessage = result?.temporaryPassword ? `User created. Temporary password for ${result.user?.email || email}: ${result.temporaryPassword}` : "User created."
         } else {
-          // customRoleIds is left out here (null keeps the current set); company roles go through the tenant-checked roles endpoint below.
           await updateUser(editingUser.id, { ...editingUser, name, email, phoneNumber, roles: [role], customRoleIds: undefined })
           const previousRoleIds = editingUser.customRoles?.map((customRole) => customRole.id) || []
           const rolesChanged = previousRoleIds.length !== customRoleIds.length || customRoleIds.some((id) => !previousRoleIds.includes(id))
