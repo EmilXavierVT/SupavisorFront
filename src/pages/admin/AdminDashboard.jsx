@@ -298,7 +298,6 @@ export default function AdminDashboard() {
     setNotice(`${name} was added to the local employee list.`)
   }
 
-  /** Styled replacement for window.confirm. Resolves true when the admin confirms. tone: "default" | "admin" | "danger". */
   function confirmAction({ title, message, confirmLabel = "Confirm", tone = "default" }) {
     return new Promise((resolve) => setConfirmDialog({ title, message, confirmLabel, tone, resolve }))
   }
