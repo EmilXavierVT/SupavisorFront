@@ -328,7 +328,6 @@ export default function AdminDashboard() {
     return Boolean(user.email) && user.email.toLowerCase() === employee.email?.toLowerCase()
   }
 
-  /** Why this user may not be demoted to a default user, or "" when they may. */
   function demotionBlockReason(employee) {
     if (!isAdminUser(employee)) return ""
     if (isCurrentUser(employee)) return "You cannot remove admin rights from your own account."
