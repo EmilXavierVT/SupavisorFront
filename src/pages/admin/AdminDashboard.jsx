@@ -133,7 +133,6 @@ export default function AdminDashboard() {
 
       setBackendData((current) => ({ ...current, loading: true, error: "" }))
       const options = { signal: controller.signal }
-      // Each source loads independently so one failing endpoint (e.g. e-conomic without credentials) does not blank the others.
       const sources = [
         ["employees", "Users", () => getUsersByTenant(user.tenantId, options)],
         ["roles", "Roles", () => getRolesByTenant(user.tenantId, options)],
@@ -325,7 +324,6 @@ export default function AdminDashboard() {
     setNotice(`${name} was added to the local employee list.`)
   }
 
-  /** Styled replacement for window.confirm. Resolves true when the admin confirms. tone: "default" | "admin" | "danger". */
   function confirmAction({ title, message, confirmLabel = "Confirm", tone = "default" }) {
     return new Promise((resolve) => setConfirmDialog({ title, message, confirmLabel, tone, resolve }))
   }
@@ -355,7 +353,6 @@ export default function AdminDashboard() {
     return Boolean(user.email) && user.email.toLowerCase() === employee.email?.toLowerCase()
   }
 
-  /** Why this user may not be demoted to a default user, or "" when they may. */
   function demotionBlockReason(employee) {
     if (!isAdminUser(employee)) return ""
     if (isCurrentUser(employee)) return "You cannot remove admin rights from your own account."
@@ -422,7 +419,6 @@ export default function AdminDashboard() {
           const result = await createUser({ name, email, roles: [role], customRoleIds })
           actionMessage = result?.temporaryPassword ? `User created. Temporary password for ${result.user?.email || email}: ${result.temporaryPassword}` : "User created."
         } else {
-          // customRoleIds is left out here (null keeps the current set); company roles go through the tenant-checked roles endpoint below.
           await updateUser(editingUser.id, { ...editingUser, name, email, phoneNumber, roles: [role], customRoleIds: undefined })
           const previousRoleIds = editingUser.customRoles?.map((customRole) => customRole.id) || []
           const rolesChanged = previousRoleIds.length !== customRoleIds.length || customRoleIds.some((id) => !previousRoleIds.includes(id))
@@ -856,7 +852,6 @@ export default function AdminDashboard() {
       const users = backendEmployees.filter((employee) => matchesSearch(employee.name, employee.email, employee.phoneNumber, employee.roles?.join(" "), employee.customRoles?.map((role) => role.roleName).join(" ")))
       const userInitials = (displayName) => displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()
       const userViews = [["byRole", "By role"], ["all", "All users"]]
-      // A user with several company roles appears in each of their lanes; users without one get their own lane.
       const roleLanes = [
         ...backendRoles.map((role) => ({ key: role.id, title: role.roleName, users: users.filter((employee) => employee.customRoles?.some((customRole) => customRole.id === role.id)) })),
         { key: "none", title: "No company role", users: users.filter((employee) => !employee.customRoles?.length) },
