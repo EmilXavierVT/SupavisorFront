@@ -136,6 +136,13 @@
 .shell :global(.admin-filter-pills button:hover) { border-color: var(--admin-primary); color: var(--admin-text); }
 .shell :global(.admin-filter-pills button.is-active) { border-color: var(--admin-primary); color: var(--admin-primary-contrast); background: var(--admin-primary); }
 .shell :global(.admin-assignment-list) { display: flex; flex-direction: column; gap: 8px; }
+.shell :global(.admin-assignment-responsible) { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 10px; }
+.shell :global(.admin-assignment-responsible label) { display: flex; min-width: 0; flex: 1 1 220px; max-width: 360px; flex-direction: column; gap: 6px; }
+.shell :global(.admin-assignment-responsible label > span) { color: var(--admin-subtle); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.shell :global(.admin-assignment-responsible select) { width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-bg); }
+.shell :global(.admin-assignment-responsible button) { min-height: 42px; padding: 8px 14px; border: 1px solid var(--admin-border); border-radius: 9px; color: var(--admin-text); background: var(--admin-card); font-weight: 600; }
+.shell :global(.admin-assignment-responsible button:disabled), .shell :global(.admin-assignment-responsible select:disabled) { opacity: 0.55; }
+.shell :global(.admin-assignment-responsible p.admin-assignment-responsible-note) { flex-basis: 100%; margin-top: 0; color: var(--admin-danger); font-size: 12px; }
 .shell :global(.admin-assignment-empty) { display: grid; min-height: 180px; place-items: center; padding: 24px 16px; border: 1px dashed var(--admin-border); border-radius: 10px; color: var(--admin-subtle); background: var(--admin-card); font-size: 12px; text-align: center; }
 
 /* Admin controls use the employee action-panel treatment. */
